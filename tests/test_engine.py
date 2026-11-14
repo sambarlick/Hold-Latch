@@ -9,23 +9,28 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er
+from homeassistant.helpers import (
+    area_registry as ar,
+    device_registry as dr,
+    entity_registry as er,
+)
 
 from custom_components.hold_latch.const import (
     CONF_AREA,
     CONF_DEVICE_CLASSES,
-    CONF_DOOR_ACTIVE,
     CONF_DOOR_ENTITY,
     CONF_HOLD_MODE,
     CONF_HOLD_TIME,
     CONF_HOLD_TYPE,
+    CONF_LATCH_WHEN,
     CONF_MAX_LATCH,
     CONF_SOURCE_ENTITY,
     DOMAIN,
-    DOOR_ACTIVE_CLOSED,
-    DOOR_ACTIVE_OPEN,
+    LATCH_WHEN_CLOSED,
+    LATCH_WHEN_OPEN,
     MODE_LAST_CLEAR,
     MODE_LAST_DETECTED,
+    SUBENTRY_HOLD,
     TYPE_AREA,
     TYPE_SENSOR,
 )
@@ -38,17 +43,29 @@ NUMBER = "number.test_hold_hold_time"
 
 
 async def _setup(hass, *, hold_type=TYPE_SENSOR, **options):
-    opts = {
+    data = {
+        CONF_HOLD_TYPE: hold_type,
         CONF_HOLD_TIME: 90,
         CONF_HOLD_MODE: MODE_LAST_DETECTED,
-        CONF_DOOR_ACTIVE: DOOR_ACTIVE_OPEN,
+        CONF_LATCH_WHEN: LATCH_WHEN_CLOSED,
         CONF_MAX_LATCH: 0,
         **options,
     }
     if hold_type == TYPE_SENSOR:
-        opts.setdefault(CONF_SOURCE_ENTITY, MOTION)
+        data.setdefault(CONF_SOURCE_ENTITY, MOTION)
     entry = MockConfigEntry(
-        domain=DOMAIN, title="Test hold", data={CONF_HOLD_TYPE: hold_type}, options=opts
+        domain=DOMAIN,
+        title="Hold & Latch",
+        data={},
+        version=2,
+        subentries_data=[
+            {
+                "subentry_type": SUBENTRY_HOLD,
+                "title": "Test hold",
+                "data": data,
+                "unique_id": None,
+            }
+        ],
     )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -132,7 +149,7 @@ async def test_live_hold_change(hass: HomeAssistant, freezer):
         "number", "set_value", {"entity_id": NUMBER, "value": 10}, blocking=True
     )
     await hass.async_block_till_done()
-    assert entry.options[CONF_HOLD_TIME] == 10
+    assert next(iter(entry.subentries.values())).data[CONF_HOLD_TIME] == 10
     assert hass.states.get(NUMBER).state == "10"
 
     await _set(hass, MOTION, "on")
@@ -182,17 +199,20 @@ async def test_no_false_latch_on_exit(hass: HomeAssistant, freezer):
     assert not _on(hass)
 
 
-async def test_inverted_door(hass: HomeAssistant, freezer):
-    """door_active=closed: 'on' means the door is closed."""
+async def test_latch_while_door_open(hass: HomeAssistant, freezer):
+    """latch_when=open: latched while open, released when the door closes."""
     await _set(hass, MOTION, "off")
-    await _set(hass, DOOR, "off")  # off = open when inverted
-    await _setup(hass, **{CONF_DOOR_ENTITY: DOOR, CONF_DOOR_ACTIVE: DOOR_ACTIVE_CLOSED})
-    assert hass.states.get(HOLD).attributes["door_open"] is True
+    await _set(hass, DOOR, "off")  # closed
+    await _setup(hass, **{CONF_DOOR_ENTITY: DOOR, CONF_LATCH_WHEN: LATCH_WHEN_OPEN})
+    await _set(hass, MOTION, "on")  # closed door: no latch
+    await _set(hass, MOTION, "off")
+    assert hass.states.get(HOLD).attributes["latched"] is False
 
-    await _set(hass, DOOR, "on")  # closed
+    await _set(hass, DOOR, "on")  # open = latch position
     await _set(hass, MOTION, "on")
     assert hass.states.get(HOLD).attributes["latched"] is True
-    await _set(hass, DOOR, "off")  # open
+    assert hass.states.get(HOLD).attributes["door_open"] is True
+    await _set(hass, DOOR, "off")  # closes
     assert hass.states.get(HOLD).attributes["latched"] is False
 
 
@@ -221,7 +241,9 @@ async def test_unavailable_door_keeps_existing_latch(hass: HomeAssistant, freeze
     assert hass.states.get(HOLD).attributes["latched"] is True
 
 
-async def test_source_back_from_unavailable_does_not_latch(hass: HomeAssistant, freezer):
+async def test_source_back_from_unavailable_does_not_latch(
+    hass: HomeAssistant, freezer
+):
     """unavailable -> on (restart/reconnect) is not new motion."""
     await _set(hass, MOTION, "unavailable")
     await _set(hass, DOOR, "off")
@@ -263,17 +285,24 @@ async def test_area_discovery(hass: HomeAssistant, freezer):
     )
     dev_reg.async_update_device(device.id, area_id=area.id)
     pir = ent_reg.async_get_or_create(
-        "binary_sensor", "zha", "pir_motion", device_id=device.id,
+        "binary_sensor",
+        "zha",
+        "pir_motion",
+        device_id=device.id,
         original_device_class="motion",
     )
     ent_reg.async_get_or_create(  # wrong class: ignored
-        "binary_sensor", "zha", "pir_tamper", device_id=device.id,
+        "binary_sensor",
+        "zha",
+        "pir_tamper",
+        device_id=device.id,
         original_device_class="tamper",
     )
     hass.states.async_set(pir.entity_id, "off")
 
     await _setup(
-        hass, hold_type=TYPE_AREA,
+        hass,
+        hold_type=TYPE_AREA,
         **{CONF_AREA: area.id, CONF_DEVICE_CLASSES: ["motion", "occupancy"]},
     )
     assert hass.states.get(HOLD).attributes["sources"] == [pir.entity_id]
@@ -291,4 +320,102 @@ async def test_area_discovery(hass: HomeAssistant, freezer):
     await hass.async_block_till_done()
     assert sorted(hass.states.get(HOLD).attributes["sources"]) == sorted(
         [pir.entity_id, extra.entity_id]
+    )
+
+
+# ---------------------------------------------------------------- multi / migration
+
+
+async def test_two_holds_one_entry(hass: HomeAssistant, freezer):
+    """Each hold is its own device under one integration entry."""
+    hass.states.async_set("binary_sensor.a", "off")
+    hass.states.async_set("binary_sensor.b", "off")
+    base = {
+        CONF_HOLD_TYPE: TYPE_SENSOR,
+        CONF_HOLD_TIME: 30,
+        CONF_HOLD_MODE: MODE_LAST_DETECTED,
+    }
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={},
+        version=2,
+        title="Hold & Latch",
+        subentries_data=[
+            {
+                "subentry_type": SUBENTRY_HOLD,
+                "title": "Room A",
+                "data": {**base, CONF_SOURCE_ENTITY: "binary_sensor.a"},
+                "unique_id": None,
+            },
+            {
+                "subentry_type": SUBENTRY_HOLD,
+                "title": "Room B",
+                "data": {**base, CONF_SOURCE_ENTITY: "binary_sensor.b"},
+                "unique_id": None,
+            },
+        ],
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await _set(hass, "binary_sensor.a", "on")
+    assert hass.states.get("binary_sensor.room_a_occupancy").state == "on"
+    assert hass.states.get("binary_sensor.room_b_occupancy").state == "off"
+
+    devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+    assert sorted(d.name for d in devices) == ["Room A", "Room B"]
+    assert all(len(d.config_entries_subentries[entry.entry_id]) == 1 for d in devices)
+
+    # Removing a hold removes its device and entities.
+    sub_b = next(s for s in entry.subentries.values() if s.title == "Room B")
+    hass.config_entries.async_remove_subentry(entry, sub_b.subentry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.room_b_occupancy") is None
+    assert er.async_get(hass).async_get("binary_sensor.room_b_occupancy") is None
+    assert hass.states.get("binary_sensor.room_a_occupancy").state == "on"
+
+
+async def test_migrate_v1_entry(hass: HomeAssistant, freezer):
+    """A v0.1 helper entry becomes one hold, keeping its entity IDs."""
+    hass.states.async_set(MOTION, "off")
+    hass.states.async_set(DOOR, "on")
+    old = MockConfigEntry(
+        domain=DOMAIN,
+        title="Ensuite",
+        version=1,
+        data={CONF_HOLD_TYPE: TYPE_SENSOR},
+        options={
+            CONF_SOURCE_ENTITY: MOTION,
+            CONF_HOLD_TIME: 90,
+            CONF_HOLD_MODE: MODE_LAST_DETECTED,
+            CONF_DOOR_ENTITY: DOOR,
+            "door_active": "open",
+            CONF_MAX_LATCH: 10800,
+        },
+    )
+    old.add_to_hass(hass)
+    ent_reg = er.async_get(hass)
+    ent_reg.async_get_or_create(
+        "binary_sensor",
+        DOMAIN,
+        f"{old.entry_id}_occupancy",
+        config_entry=old,
+        suggested_object_id="ensuite_occupancy",
+    )
+
+    assert await hass.config_entries.async_setup(old.entry_id)
+    await hass.async_block_till_done()
+
+    assert old.version == 2
+    assert old.title == "Hold & Latch"
+    (sub,) = old.subentries.values()
+    assert sub.title == "Ensuite"
+    assert sub.data[CONF_LATCH_WHEN] == LATCH_WHEN_CLOSED
+    assert "door_active" not in sub.data
+    # Same entity, same ID, now attached to the hold.
+    assert hass.states.get("binary_sensor.ensuite_occupancy") is not None
+    assert (
+        ent_reg.async_get("binary_sensor.ensuite_occupancy").config_subentry_id
+        == sub.subentry_id
     )

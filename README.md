@@ -16,8 +16,8 @@ The hold works like the IKEA VALLHORN's built-in occupancy hold, for any sensor.
 ## ✨ Features
 
 * **⏱️ Occupancy hold:** Occupancy stays on for a set time after motion. New motion restarts the hold.
-* **🧲 Sensor or area:** Hold a single sensor, or a whole area. Area holds pick up every motion and occupancy sensor in the area, including ones you add or move later.
-* **🚪 Door latch:** Door closed, then new motion: the room stays occupied until the door opens. Sitting still in a closed room won't turn the lights off.
+* **🧲 One sensor or a whole room:** Hold a single sensor, or a whole room (an HA area). Room holds pick up every motion and occupancy sensor in the area, including ones you add or move later.
+* **🚪 Optional door latch:** Door closed, then new motion: the room stays occupied until the door opens. Sitting still in a closed room won't turn the lights off.
 * **🛡️ No false latches:** Leaving and closing the door behind you doesn't latch an empty room. Only motion *after* the door closes counts.
 * **🔁 Two hold modes:** Count from the last motion (VALLHORN-style), or from when motion clears (for presence sensors that stay on).
 * **🎚️ Live hold time:** A hold time number entity, adjustable from a dashboard without reloading.
@@ -51,19 +51,21 @@ On Home Assistant 2026.10 or earlier, add this repository as a custom repository
 ## ⚙️ Configuration
 
 1.  Go to **Settings** -> **Devices & Services** -> **Add Integration** and search for **Hold & Latch**.
-2.  Choose **Hold a single sensor** or **Hold a whole area**.
-3.  Set the hold time and hold mode.
-4.  Optionally, add a door sensor to enable the latch.
+2.  Choose **One sensor** or **A whole room**.
+3.  Pick the sensor or area, and set the hold time and hold mode.
+4.  Optionally, tick **Add a door latch** and pick the door on the next screen.
 
-To change a hold later, go to **Settings** -> **Devices & Services** -> **Hold & Latch** and click the **settings cog**.
+Adding the integration sets up your first hold. To add more, open **Settings** -> **Devices & Services** -> **Hold & Latch** and click **Add hold**. To change a hold, use **Edit hold** in its **⋮** menu.
+
+Each hold gets its own device. Everything lives under the one Hold & Latch integration.
 
 ### Entities
 
-Each hold creates a device with:
+Each hold's device has:
 
 | Entity | What it does |
 |---|---|
-| **Occupancy** | The held occupancy. Attributes show `motion`, `latched`, `last_detected` and `sources`, plus `door_open` and `latched_since` when a door is set. |
+| **Occupancy** | The held occupancy. Attributes show `motion`, `latched`, `last_detected` and `sources`, plus `door_open` and `latched_since` when a latch is set. |
 | **Clears at** | When occupancy will clear. Unknown while motion is on or the room is latched. |
 | **Hold time** | The hold time in seconds. Changes apply immediately. |
 
@@ -72,12 +74,15 @@ Each hold creates a device with:
 * **Last motion (VALLHORN-style):** Clears the hold time after the last motion started. Best for PIR sensors.
 * **When motion clears:** Clears the hold time after every source turns off. Best for mmWave and other presence sensors.
 
-### Door latch
+### Door latch (optional)
 
-* **Door sensor 'on' means:** Most door sensors report on = open. Pick **Closed (inverted)** if yours reports on = closed.
-* **Maximum latch time:** Releases a stuck latch, for example if the door opening was missed. Set to 0 to disable. The default is 3 hours.
+* **Latch the room while the door is closed:** For ensuites, toilets and studies. Stays occupied until the door opens.
+* **Latch the room while the door is open:** Stays occupied until the door closes. Also use this if your door sensor reports the opposite way round.
+* **Maximum latch time:** Releases a stuck latch, for example if the door opening was missed. Set to 0 to turn it off. The default is 3 hours.
 
-When the door opens, the latch releases and the hold restarts from that moment.
+When the latch releases, the hold restarts from that moment.
+
+Only motion and occupancy sensors are offered as sources, and only door, garage door and opening sensors as doors.
 
 ## Credits
 * **Architect & Maintainer:** @sambarlick

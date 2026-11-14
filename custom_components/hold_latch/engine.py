@@ -6,9 +6,10 @@ Rules
 * All sources off                    -> occupied until ``clears_at``:
     - last_detected mode: last motion onset + hold
     - last_clear mode:    moment all sources cleared + hold
-* Door configured, door closed, and a *new* motion onset (off -> on) after
-  the door closed -> latched: occupied until the door opens.
-* Door opens while latched           -> unlatch; the hold restarts from now.
+* Door configured and in its latch position (closed by default), and a
+  *new* motion onset (off -> on) after it got there -> latched: occupied
+  until the door leaves that position.
+* Door leaves the latch position     -> unlatch; the hold restarts from now.
 * Latched longer than max latch      -> unlatch (escape hatch; 0 disables).
 * Door unavailable/unknown           -> no new latches, existing latch kept.
 * Source returning from unavailable  -> counts for the hold, never latches.
@@ -37,7 +38,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, DOOR_ACTIVE_OPEN, MODE_LAST_DETECTED, STORAGE_VERSION
+from .const import DOMAIN, LATCH_WHEN_CLOSED, MODE_LAST_DETECTED, STORAGE_VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,11 +60,11 @@ class HoldEngine:
         self,
         hass: HomeAssistant,
         *,
-        entry_id: str,
+        storage_id: str,
         hold_seconds: int,
         hold_mode: str,
         door_entity: str | None,
-        door_active: str,
+        latch_when: str,
         max_latch_seconds: int,
     ) -> None:
         """Initialise the engine."""
@@ -71,12 +72,12 @@ class HoldEngine:
         self._hold = timedelta(seconds=hold_seconds)
         self._hold_mode = hold_mode
         self._door_entity = door_entity
-        self._door_active = door_active
+        self._latch_when = latch_when
         self._max_latch = (
             timedelta(seconds=max_latch_seconds) if max_latch_seconds else None
         )
         self._store: Store[dict[str, Any]] = Store(
-            hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}"
+            hass, STORAGE_VERSION, f"{DOMAIN}.{storage_id}"
         )
 
         self._sources: set[str] = set()
@@ -88,13 +89,16 @@ class HoldEngine:
         self.latched_since: datetime | None = None
         self.last_detected: datetime | None = None
         self.last_clear: datetime | None = None
-        self.door_closed_at: datetime | None = None
+        self.door_closed_at: datetime | None = (
+            None  # when it reached the latch position
+        )
         self._released_at: datetime | None = None
 
         self._unsub_sources: CALLBACK_TYPE | None = None
         self._unsub_door: CALLBACK_TYPE | None = None
         self._unsub_timer: CALLBACK_TYPE | None = None
         self._listeners: list[Callable[[], None]] = []
+        self._stopped = False
 
     # ------------------------------------------------------------------ props
 
@@ -121,6 +125,15 @@ class HoldEngine:
     @property
     def door_open(self) -> bool | None:
         """Door open state; None if no door or door state unknown."""
+        return self._door_open
+
+    @property
+    def _door_in_latch_position(self) -> bool | None:
+        """True if the door is where it holds the latch; None if unknown."""
+        if self._door_open is None:
+            return None
+        if self._latch_when == LATCH_WHEN_CLOSED:
+            return not self._door_open
         return self._door_open
 
     @property
@@ -155,10 +168,11 @@ class HoldEngine:
         now = dt_util.utcnow()
         if self._door_entity:
             self._door_open = self._door_state(self.hass.states.get(self._door_entity))
-            if self._door_open is False:
-                # Already closed: only motion from now on can latch.
+            in_position = self._door_in_latch_position
+            if in_position is True:
+                # Already in position: only motion from now on can latch.
                 self.door_closed_at = now
-            elif self._door_open is True and self.latched:
+            elif in_position is False and self.latched:
                 self._unlatch(now)
             self._unsub_door = async_track_state_change_event(
                 self.hass, [self._door_entity], self._handle_door
@@ -166,14 +180,23 @@ class HoldEngine:
         self._evaluate(now)
 
     @callback
-    def async_stop(self) -> None:
-        """Stop all tracking and flush state."""
+    def async_stop(self, *, save: bool = True) -> None:
+        """Stop all tracking and flush state. Safe to call twice."""
+        if self._stopped:
+            return
+        self._stopped = True
         for unsub in (self._unsub_sources, self._unsub_door, self._unsub_timer):
             if unsub:
                 unsub()
         self._unsub_sources = self._unsub_door = self._unsub_timer = None
         self._listeners.clear()
-        self._store.async_delay_save(self._data_to_save, 0)
+        if save:
+            self._store.async_delay_save(self._data_to_save, 0)
+
+    async def async_remove_storage(self) -> None:
+        """Stop without saving and delete the saved state (hold deleted)."""
+        self.async_stop(save=False)
+        await self._store.async_remove()
 
     @callback
     def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
@@ -244,7 +267,7 @@ class HoldEngine:
             # Only a genuine off -> on is new motion. Coming back from
             # unavailable/unknown (restart, reconnect) never latches.
             genuine_onset = old_state is not None and old_state.state == STATE_OFF
-            if genuine_onset and self._door_open is False:
+            if genuine_onset and self._door_in_latch_position is True:
                 self._latch(now)
 
         if was_any_on and not self.any_source_on:
@@ -255,16 +278,17 @@ class HoldEngine:
     @callback
     def _handle_door(self, event: Event[EventStateChangedData]) -> None:
         now = dt_util.utcnow()
-        previous = self._door_open
+        previous = self._door_in_latch_position
         self._door_open = self._door_state(event.data["new_state"])
+        in_position = self._door_in_latch_position
 
-        if self._door_open is False and previous is not False:
+        if in_position is True and previous is not True:
             self.door_closed_at = now
-        elif self._door_open is True:
+        elif in_position is False:
             self.door_closed_at = None
             if self.latched:
                 self._unlatch(now)
-        elif self._door_open is None:
+        elif in_position is None:
             # Door went unavailable: block new latches, keep an existing one.
             self.door_closed_at = None
 
@@ -278,11 +302,10 @@ class HoldEngine:
     # --------------------------------------------------------------- helpers
 
     def _door_state(self, state: State | None) -> bool | None:
-        """Return True if open, False if closed, None if unknown."""
+        """Return True if open, False if closed, None if unknown (on = open)."""
         if state is None or state.state in _UNKNOWN_STATES:
             return None
-        is_on = state.state == STATE_ON
-        return is_on if self._door_active == DOOR_ACTIVE_OPEN else not is_on
+        return state.state == STATE_ON
 
     def _reference(self) -> datetime | None:
         """Moment the hold counts from."""
@@ -342,7 +365,8 @@ class HoldEngine:
             )
 
         self.occupied = occupied
-        self._store.async_delay_save(self._data_to_save, 1)
+        if not self._stopped:
+            self._store.async_delay_save(self._data_to_save, 1)
         for listener in list(self._listeners):
             listener()
 

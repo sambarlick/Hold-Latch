@@ -6,9 +6,10 @@
   ],
   "config_flow": true,
   "documentation": "https://github.com/sambarlick/Hold-Latch",
-  "integration_type": "helper",
+  "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/sambarlick/Hold-Latch/issues",
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.2.0",
+  "single_config_entry": true
 }

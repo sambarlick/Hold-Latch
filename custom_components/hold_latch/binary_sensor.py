@@ -8,6 +8,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -21,7 +22,11 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the occupancy sensor."""
-    async_add_entities([HoldLatchBinarySensor(entry)])
+    for subentry_id, subentry in entry.subentries.items():
+        if subentry_id in entry.runtime_data.engines:
+            async_add_entities(
+                [HoldLatchBinarySensor(entry, subentry)], config_subentry_id=subentry_id
+            )
 
 
 class HoldLatchBinarySensor(HoldLatchEntity, BinarySensorEntity):
@@ -31,9 +36,9 @@ class HoldLatchBinarySensor(HoldLatchEntity, BinarySensorEntity):
     # Keep fast-changing / bulky attributes out of the recorder.
     _unrecorded_attributes = frozenset({"sources", "last_detected"})
 
-    def __init__(self, entry: HoldLatchConfigEntry) -> None:
+    def __init__(self, entry: HoldLatchConfigEntry, subentry: ConfigSubentry) -> None:
         """Initialise the sensor."""
-        super().__init__(entry, "occupancy")
+        super().__init__(entry, subentry, "occupancy")
 
     @property
     def is_on(self) -> bool:

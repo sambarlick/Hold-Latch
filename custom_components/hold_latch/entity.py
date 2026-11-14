@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
 
@@ -14,20 +15,23 @@ if TYPE_CHECKING:
 
 
 class HoldLatchEntity(Entity):
-    """Common behaviour: one device per hold, push updates from the engine."""
+    """Common behaviour: one device per hold, push updates from its engine."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
 
-    def __init__(self, entry: HoldLatchConfigEntry, key: str) -> None:
+    def __init__(
+        self, entry: HoldLatchConfigEntry, subentry: ConfigSubentry, key: str
+    ) -> None:
         """Initialise the entity."""
         self._entry = entry
-        self._engine = entry.runtime_data.engine
-        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        self._subentry_id = subentry.subentry_id
+        self._engine = entry.runtime_data.engines[subentry.subentry_id]
+        self._attr_unique_id = f"{subentry.subentry_id}_{key}"
         self._attr_translation_key = key
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
+            identifiers={(DOMAIN, subentry.subentry_id)},
+            name=subentry.title,
             entry_type=DeviceEntryType.SERVICE,
             manufacturer="Hold & Latch",
         )

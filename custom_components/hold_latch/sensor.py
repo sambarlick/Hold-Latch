@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -18,7 +19,12 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the clears-at sensor."""
-    async_add_entities([HoldLatchClearsAtSensor(entry)])
+    for subentry_id, subentry in entry.subentries.items():
+        if subentry_id in entry.runtime_data.engines:
+            async_add_entities(
+                [HoldLatchClearsAtSensor(entry, subentry)],
+                config_subentry_id=subentry_id,
+            )
 
 
 class HoldLatchClearsAtSensor(HoldLatchEntity, SensorEntity):
@@ -31,9 +37,9 @@ class HoldLatchClearsAtSensor(HoldLatchEntity, SensorEntity):
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
-    def __init__(self, entry: HoldLatchConfigEntry) -> None:
+    def __init__(self, entry: HoldLatchConfigEntry, subentry: ConfigSubentry) -> None:
         """Initialise the sensor."""
-        super().__init__(entry, "clears_at")
+        super().__init__(entry, subentry, "clears_at")
 
     @property
     def native_value(self) -> datetime | None:
