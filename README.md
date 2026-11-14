@@ -19,7 +19,7 @@ The hold works like the IKEA VALLHORN's built-in occupancy hold, for any sensor.
 * **🧲 One sensor or a whole room:** Hold a single sensor, or a whole room (an HA area). Room holds pick up every motion and occupancy sensor in the area, including ones you add or move later.
 * **🚪 Optional door latch:** Door closed, then new motion: the room stays occupied until the door opens. Sitting still in a closed room won't turn the lights off.
 * **🛡️ No false latches:** Leaving and closing the door behind you doesn't latch an empty room. Only motion *after* the door closes counts.
-* **🔁 Two hold modes:** Count from the last motion (VALLHORN-style), or from when motion clears (for presence sensors that stay on).
+* **🔁 Two hold modes:** Count from the last motion (IKEA VALLHORN style), or from when motion clears (for presence sensors that stay on).
 * **🎚️ Live hold time:** A hold time number entity, adjustable from a dashboard without reloading.
 * **🕒 Clears at:** A timestamp sensor showing when occupancy will clear.
 * **💾 Survives restarts:** Latches and hold timing are restored after a restart.
@@ -55,9 +55,13 @@ On Home Assistant 2026.10 or earlier, add this repository as a custom repository
 3.  Pick the sensor or area, and set the hold time and hold mode.
 4.  Optionally, tick **Add a door latch** and pick the door on the next screen.
 
+Leave **Name** blank and the hold is named after its sensor or area, e.g. **Ensuite Hold**, or **Ensuite Latch** with a door latch. You can rename it at any time.
+
 Adding the integration sets up your first hold. To add more, open **Settings** -> **Devices & Services** -> **Hold & Latch** and click **Add hold**. To change a hold, use **Edit hold** in its **⋮** menu.
 
 Each hold gets its own device. Everything lives under the one Hold & Latch integration.
+
+For a single-sensor hold, you can tick **Show on the sensor's device** instead. The hold's entities are then added to the motion sensor's own device, named **Hold**, **Hold clears at** and **Hold time** so they don't clash with the sensor's entities. The sensor's device isn't otherwise changed.
 
 ### Entities
 
@@ -71,7 +75,7 @@ Each hold's device has:
 
 ### Hold modes
 
-* **Last motion (VALLHORN-style):** Clears the hold time after the last motion started. Best for PIR sensors.
+* **Last motion (IKEA VALLHORN style):** Clears the hold time after the last motion started. Best for PIR sensors.
 * **When motion clears:** Clears the hold time after every source turns off. Best for mmWave and other presence sensors.
 
 ### Door latch (optional)

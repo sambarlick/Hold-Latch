@@ -5,10 +5,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigSubentry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.device import async_entity_id_to_device
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
 
-from .const import DOMAIN
+from .const import CONF_ATTACH, CONF_HOLD_TYPE, CONF_SOURCE_ENTITY, DOMAIN, TYPE_SENSOR
+
+
+def attached_device_id(hass: HomeAssistant, subentry: ConfigSubentry) -> str | None:
+    """Device the hold should show on, if it's attached to its sensor's device."""
+    data = subentry.data
+    if data.get(CONF_HOLD_TYPE) != TYPE_SENSOR or not data.get(CONF_ATTACH):
+        return None
+    device = async_entity_id_to_device(hass, data[CONF_SOURCE_ENTITY])
+    return device.id if device else None
+
 
 if TYPE_CHECKING:
     from . import HoldLatchConfigEntry
@@ -20,8 +33,16 @@ class HoldLatchEntity(Entity):
     _attr_has_entity_name = True
     _attr_should_poll = False
 
+    # Name used when the entity sits on the sensor's own device, so it doesn't
+    # clash with the sensor's entities (e.g. "Hold" next to "Occupancy").
+    _attached_translation_key: str | None = None
+
     def __init__(
-        self, entry: HoldLatchConfigEntry, subentry: ConfigSubentry, key: str
+        self,
+        hass: HomeAssistant,
+        entry: HoldLatchConfigEntry,
+        subentry: ConfigSubentry,
+        key: str,
     ) -> None:
         """Initialise the entity."""
         self._entry = entry
@@ -29,6 +50,13 @@ class HoldLatchEntity(Entity):
         self._engine = entry.runtime_data.engines[subentry.subentry_id]
         self._attr_unique_id = f"{subentry.subentry_id}_{key}"
         self._attr_translation_key = key
+
+        if device_id := attached_device_id(hass, subentry):
+            # Show on the sensor's device without taking it over.
+            self.device_entry = dr.async_get(hass).async_get(device_id)
+            self._attr_translation_key = self._attached_translation_key or key
+            return
+
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, subentry.subentry_id)},
             name=subentry.title,

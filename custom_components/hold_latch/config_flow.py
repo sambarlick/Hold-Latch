@@ -22,6 +22,8 @@ from homeassistant.config_entries import (
     SubentryFlowResult,
 )
 from homeassistant.core import callback
+from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers.device import async_entity_id_to_device
 from homeassistant.helpers.selector import (
     AreaSelector,
     BooleanSelector,
@@ -39,6 +41,7 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_ADD_LATCH,
     CONF_AREA,
+    CONF_ATTACH,
     CONF_DEVICE_CLASSES,
     CONF_DOOR_ENTITY,
     CONF_EXCLUDE,
@@ -88,7 +91,10 @@ def _default(data: dict[str, Any], key: str, fallback: Any = vol.UNDEFINED) -> A
 
 def _hold_schema(hold_type: str, data: dict[str, Any]) -> vol.Schema:
     fields: dict[Any, Any] = {
-        vol.Required(CONF_NAME, default=_default(data, CONF_NAME)): TextSelector(),
+        # Optional: left blank, it becomes "<sensor or area> Hold" or "... Latch".
+        vol.Optional(
+            CONF_NAME, description={"suggested_value": data.get(CONF_NAME)}
+        ): TextSelector(),
     }
     if hold_type == TYPE_SENSOR:
         fields[
@@ -143,6 +149,10 @@ def _hold_schema(hold_type: str, data: dict[str, Any]) -> vol.Schema:
             translation_key=CONF_HOLD_MODE,
         )
     )
+    if hold_type == TYPE_SENSOR:
+        fields[vol.Required(CONF_ATTACH, default=bool(data.get(CONF_ATTACH)))] = (
+            BooleanSelector()
+        )
     fields[vol.Required(CONF_ADD_LATCH, default=bool(data.get(CONF_DOOR_ENTITY)))] = (
         BooleanSelector()
     )
@@ -206,6 +216,8 @@ class _HoldSteps:
             add_latch = user_input.pop(CONF_ADD_LATCH, False)
             # Switching type on reconfigure must not leave the old type's keys.
             for key in (
+                CONF_NAME,
+                CONF_ATTACH,
                 CONF_SOURCE_ENTITY,
                 CONF_AREA,
                 CONF_DEVICE_CLASSES,
@@ -246,7 +258,24 @@ class _HoldSteps:
 
     def _split(self) -> tuple[str, dict[str, Any]]:
         data = dict(self._data)
-        return data.pop(CONF_NAME), data
+        name = (data.pop(CONF_NAME, None) or "").strip()
+        return name or self._auto_name(data), data
+
+    def _auto_name(self, data: dict[str, Any]) -> str:
+        """'<sensor or area> Hold', or '... Latch' when a door latch is set."""
+        hass = self.hass  # type: ignore[attr-defined]
+        base: str | None = None
+        if data[CONF_HOLD_TYPE] == TYPE_SENSOR:
+            source = data[CONF_SOURCE_ENTITY]
+            if device := async_entity_id_to_device(hass, source):
+                base = device.name_by_user or device.name
+            if not base:
+                state = hass.states.get(source)
+                base = state.name if state else source
+        elif area := ar.async_get(hass).async_get_area(data[CONF_AREA]):
+            base = area.name
+        suffix = "Latch" if data.get(CONF_DOOR_ENTITY) else "Hold"
+        return f"{base or 'Room'} {suffix}"
 
     def _async_finish(self):
         raise NotImplementedError

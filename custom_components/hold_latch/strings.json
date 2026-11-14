@@ -3,10 +3,14 @@
     "step": {
       "user": {
         "title": "What do you want to hold?",
-        "description": "A hold keeps occupancy on for a set time after motion stops, so lights don't switch off while you're still there. You can add a door latch on the next screen.",
+        "description": "Hold keeps occupancy On for a user-set time after motion stops. Lights won't switch off while you're still there.\n\nYou can add a door latch on the next screen.",
         "menu_options": {
-          "sensor_hold": "One sensor: hold a single motion or occupancy sensor",
-          "area_hold": "A whole room: combine every motion and occupancy sensor in an area"
+          "sensor_hold": "One sensor",
+          "area_hold": "A whole room"
+        },
+        "menu_option_descriptions": {
+          "sensor_hold": "Hold a single motion or occupancy sensor.",
+          "area_hold": "Combine every motion and occupancy sensor in an area."
         }
       },
       "sensor_hold": {
@@ -16,15 +20,17 @@
           "name": "Name",
           "hold_time": "Hold time",
           "hold_mode": "Hold counts from",
-          "add_latch": "Add a door latch",
-          "source_entity": "Motion or occupancy sensor"
+          "source_entity": "Motion or occupancy sensor",
+          "attach_to_sensor": "Show on the sensor's device",
+          "add_latch": "Add a door latch"
         },
         "data_description": {
-          "name": "Used for the device and its entities, e.g. Ensuite.",
+          "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
           "hold_time": "How long occupancy stays on after motion, in seconds.",
-          "hold_mode": "VALLHORN-style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
-          "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
-          "source_entity": "Only motion and occupancy sensors are listed. For a door latch, the fastest-clearing one works best, e.g. a VALLHORN's Motion rather than its Occupancy."
+          "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
+          "source_entity": "Only motion and occupancy sensors are listed. For a door latch, the fastest-clearing one works best, e.g. an IKEA VALLHORN's Motion rather than its Occupancy.",
+          "attach_to_sensor": "Optional. Adds this hold's entities to the motion sensor's own device instead of creating a new one.",
+          "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen."
         }
       },
       "area_hold": {
@@ -40,9 +46,9 @@
           "exclude_entities": "Sensors to leave out"
         },
         "data_description": {
-          "name": "Used for the device and its entities, e.g. Ensuite.",
+          "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
           "hold_time": "How long occupancy stays on after motion, in seconds.",
-          "hold_mode": "VALLHORN-style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
+          "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
           "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
           "area": "Sensors assigned to this area, directly or through their device, are included.",
           "exclude_entities": "Optional. Sensors in the area that shouldn't count."
@@ -80,10 +86,14 @@
       "step": {
         "user": {
           "title": "What do you want to hold?",
-          "description": "A hold keeps occupancy on for a set time after motion stops, so lights don't switch off while you're still there. You can add a door latch on the next screen.",
+          "description": "Hold keeps occupancy On for a user-set time after motion stops. Lights won't switch off while you're still there.\n\nYou can add a door latch on the next screen.",
           "menu_options": {
-            "sensor_hold": "One sensor: hold a single motion or occupancy sensor",
-            "area_hold": "A whole room: combine every motion and occupancy sensor in an area"
+            "sensor_hold": "One sensor",
+            "area_hold": "A whole room"
+          },
+          "menu_option_descriptions": {
+            "sensor_hold": "Hold a single motion or occupancy sensor.",
+            "area_hold": "Combine every motion and occupancy sensor in an area."
           }
         },
         "sensor_hold": {
@@ -93,15 +103,17 @@
             "name": "Name",
             "hold_time": "Hold time",
             "hold_mode": "Hold counts from",
-            "add_latch": "Add a door latch",
-            "source_entity": "Motion or occupancy sensor"
+            "source_entity": "Motion or occupancy sensor",
+            "attach_to_sensor": "Show on the sensor's device",
+            "add_latch": "Add a door latch"
           },
           "data_description": {
-            "name": "Used for the device and its entities, e.g. Ensuite.",
+            "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
             "hold_time": "How long occupancy stays on after motion, in seconds.",
-            "hold_mode": "VALLHORN-style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
-            "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
-            "source_entity": "Only motion and occupancy sensors are listed. For a door latch, the fastest-clearing one works best, e.g. a VALLHORN's Motion rather than its Occupancy."
+            "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
+            "source_entity": "Only motion and occupancy sensors are listed. For a door latch, the fastest-clearing one works best, e.g. an IKEA VALLHORN's Motion rather than its Occupancy.",
+            "attach_to_sensor": "Optional. Adds this hold's entities to the motion sensor's own device instead of creating a new one.",
+            "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen."
           }
         },
         "area_hold": {
@@ -117,9 +129,9 @@
             "exclude_entities": "Sensors to leave out"
           },
           "data_description": {
-            "name": "Used for the device and its entities, e.g. Ensuite.",
+            "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
             "hold_time": "How long occupancy stays on after motion, in seconds.",
-            "hold_mode": "VALLHORN-style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
+            "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
             "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
             "area": "Sensors assigned to this area, directly or through their device, are included.",
             "exclude_entities": "Optional. Sensors in the area that shouldn't count."
@@ -151,7 +163,7 @@
   "selector": {
     "hold_mode": {
       "options": {
-        "last_detected": "Last motion (VALLHORN-style)",
+        "last_detected": "Last motion (IKEA VALLHORN style)",
         "last_clear": "When motion clears (for presence sensors)"
       }
     },
@@ -173,11 +185,17 @@
     "binary_sensor": {
       "occupancy": {
         "name": "Occupancy"
+      },
+      "hold": {
+        "name": "Hold"
       }
     },
     "sensor": {
       "clears_at": {
         "name": "Clears at"
+      },
+      "hold_clears_at": {
+        "name": "Hold clears at"
       }
     },
     "number": {

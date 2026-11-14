@@ -25,7 +25,8 @@ async def async_setup_entry(
     for subentry_id, subentry in entry.subentries.items():
         if subentry_id in entry.runtime_data.engines:
             async_add_entities(
-                [HoldLatchBinarySensor(entry, subentry)], config_subentry_id=subentry_id
+                [HoldLatchBinarySensor(hass, entry, subentry)],
+                config_subentry_id=subentry_id,
             )
 
 
@@ -36,9 +37,13 @@ class HoldLatchBinarySensor(HoldLatchEntity, BinarySensorEntity):
     # Keep fast-changing / bulky attributes out of the recorder.
     _unrecorded_attributes = frozenset({"sources", "last_detected"})
 
-    def __init__(self, entry: HoldLatchConfigEntry, subentry: ConfigSubentry) -> None:
+    _attached_translation_key = "hold"
+
+    def __init__(
+        self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
+    ) -> None:
         """Initialise the sensor."""
-        super().__init__(entry, subentry, "occupancy")
+        super().__init__(hass, entry, subentry, "occupancy")
 
     @property
     def is_on(self) -> bool:

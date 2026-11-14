@@ -22,7 +22,7 @@ async def async_setup_entry(
     for subentry_id, subentry in entry.subentries.items():
         if subentry_id in entry.runtime_data.engines:
             async_add_entities(
-                [HoldLatchClearsAtSensor(entry, subentry)],
+                [HoldLatchClearsAtSensor(hass, entry, subentry)],
                 config_subentry_id=subentry_id,
             )
 
@@ -37,9 +37,13 @@ class HoldLatchClearsAtSensor(HoldLatchEntity, SensorEntity):
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
-    def __init__(self, entry: HoldLatchConfigEntry, subentry: ConfigSubentry) -> None:
+    _attached_translation_key = "hold_clears_at"
+
+    def __init__(
+        self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
+    ) -> None:
         """Initialise the sensor."""
-        super().__init__(entry, subentry, "clears_at")
+        super().__init__(hass, entry, subentry, "clears_at")
 
     @property
     def native_value(self) -> datetime | None:

@@ -22,7 +22,8 @@ async def async_setup_entry(
     for subentry_id, subentry in entry.subentries.items():
         if subentry_id in entry.runtime_data.engines:
             async_add_entities(
-                [HoldLatchTimeNumber(entry, subentry)], config_subentry_id=subentry_id
+                [HoldLatchTimeNumber(hass, entry, subentry)],
+                config_subentry_id=subentry_id,
             )
 
 
@@ -41,9 +42,11 @@ class HoldLatchTimeNumber(HoldLatchEntity, NumberEntity):
     _attr_native_step = 1
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
 
-    def __init__(self, entry: HoldLatchConfigEntry, subentry: ConfigSubentry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
+    ) -> None:
         """Initialise the number."""
-        super().__init__(entry, subentry, "hold_time")
+        super().__init__(hass, entry, subentry, "hold_time")
 
     @property
     def native_value(self) -> float:

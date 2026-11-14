@@ -39,6 +39,7 @@ from .const import (
     TYPE_SENSOR,
 )
 from .engine import HoldEngine
+from .entity import attached_device_id
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.NUMBER, Platform.SENSOR]
 
@@ -78,8 +79,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) ->
     runtime = RuntimeData()
     entry.runtime_data = runtime
 
+    dev_reg = dr.async_get(hass)
     for subentry_id, subentry in _holds(entry).items():
         runtime.engines[subentry_id] = await _async_start_hold(hass, entry, subentry)
+        # Attached to its sensor's device: drop the hold's own device, if any.
+        if attached_device_id(hass, subentry) and (
+            own := dev_reg.async_get_device(identifiers={(DOMAIN, subentry_id)})
+        ):
+            dev_reg.async_remove_device(own.id)
 
     runtime.applied = _structure(entry)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
