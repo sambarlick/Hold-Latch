@@ -1,5 +1,6 @@
 {
   "name": "Hold & Latch",
-  "homeassistant": "2025.2.0",
-  "render_readme": true
+  "render_readme": true,
+  "content_in_root": false,
+  "homeassistant": "2025.2.0"
 }
