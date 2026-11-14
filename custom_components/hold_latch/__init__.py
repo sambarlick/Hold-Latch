@@ -19,7 +19,7 @@ from .area import discover_area_sources
 from .const import (
     CONF_AREA,
     CONF_DEVICE_CLASSES,
-    CONF_DOOR_ENTITY,
+    CONF_LATCH_TRIGGER,
     CONF_EXCLUDE,
     CONF_HOLD_MODE,
     CONF_HOLD_TIME,
@@ -36,7 +36,9 @@ from .const import (
     MODE_LAST_DETECTED,
     STORAGE_VERSION,
     SUBENTRY_HOLD,
+    TRIGGER_NEW_MOTION,
     TYPE_SENSOR,
+    door_entities,
 )
 from .engine import HoldEngine
 from .entity import attached_device_id
@@ -79,14 +81,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) ->
     runtime = RuntimeData()
     entry.runtime_data = runtime
 
-    dev_reg = dr.async_get(hass)
     for subentry_id, subentry in _holds(entry).items():
         runtime.engines[subentry_id] = await _async_start_hold(hass, entry, subentry)
-        # Attached to its sensor's device: drop the hold's own device, if any.
-        if attached_device_id(hass, subentry) and (
-            own := dev_reg.async_get_device(identifiers={(DOMAIN, subentry_id)})
-        ):
-            dev_reg.async_remove_device(own.id)
+        _async_tidy_devices(hass, entry, subentry)
 
     runtime.applied = _structure(entry)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -94,19 +91,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) ->
     return True
 
 
+@callback
+def _async_tidy_devices(
+    hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
+) -> None:
+    """Keep a hold linked to exactly one device.
+
+    Attached to its sensor's device: drop the hold's own device. Not attached
+    (or attached to a different sensor now): unlink from other devices.
+    """
+    dev_reg = dr.async_get(hass)
+    subentry_id = subentry.subentry_id
+    attached = attached_device_id(hass, subentry)
+    for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+        if subentry_id not in device.config_entries_subentries.get(entry.entry_id, ()):
+            continue
+        own = (DOMAIN, subentry_id) in device.identifiers
+        if own and attached:
+            dev_reg.async_remove_device(device.id)
+        elif not own and device.id != attached:
+            dev_reg.async_update_device(
+                device.id,
+                remove_config_entry_id=entry.entry_id,
+                remove_config_subentry_id=subentry_id,
+            )
+
+
 async def _async_start_hold(
     hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
 ) -> HoldEngine:
     data = subentry.data
-    door_entity = data.get(CONF_DOOR_ENTITY)
+    doors = door_entities(data)
 
     engine = HoldEngine(
         hass,
         storage_id=subentry.subentry_id,
         hold_seconds=int(data.get(CONF_HOLD_TIME, DEFAULT_HOLD_TIME)),
         hold_mode=data.get(CONF_HOLD_MODE, MODE_LAST_DETECTED),
-        door_entity=door_entity,
+        door_entities=doors,
         latch_when=data.get(CONF_LATCH_WHEN, LATCH_WHEN_CLOSED),
+        latch_trigger=data.get(CONF_LATCH_TRIGGER, TRIGGER_NEW_MOTION),
         max_latch_seconds=int(data.get(CONF_MAX_LATCH, DEFAULT_MAX_LATCH)),
     )
     await engine.async_load()
@@ -124,7 +148,7 @@ async def _async_start_hold(
     @callback
     def _refresh_sources(_event: Event | None = None) -> None:
         engine.async_set_sources(
-            discover_area_sources(hass, area_id, device_classes, exclude, door_entity)
+            discover_area_sources(hass, area_id, device_classes, exclude, doors)
         )
 
     _refresh_sources()

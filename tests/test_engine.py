@@ -22,6 +22,8 @@ from custom_components.hold_latch.const import (
     CONF_HOLD_MODE,
     CONF_HOLD_TIME,
     CONF_HOLD_TYPE,
+    CONF_DOOR_ENTITIES,
+    CONF_LATCH_TRIGGER,
     CONF_LATCH_WHEN,
     CONF_MAX_LATCH,
     CONF_SOURCE_ENTITY,
@@ -38,7 +40,7 @@ from custom_components.hold_latch.const import (
 MOTION = "binary_sensor.test_motion"
 DOOR = "binary_sensor.test_door"
 HOLD = "binary_sensor.test_hold_occupancy"
-CLEARS = "sensor.test_hold_clears_at"
+CLEARS = "sensor.test_hold_hold_ends"
 NUMBER = "number.test_hold_hold_time"
 
 
@@ -420,3 +422,89 @@ async def test_no_latch_entity_without_door(hass: HomeAssistant, freezer):
     await _set(hass, MOTION, "off")
     await _setup(hass)
     assert hass.states.get("binary_sensor.test_hold_latch") is None
+
+
+# ---------------------------------------------------------------- triggers / many doors
+
+GARAGE = [
+    "binary_sensor.roller_door",
+    "binary_sensor.side_door",
+    "binary_sensor.house_door",
+]
+
+
+async def test_motion_present_trigger(hass: HomeAssistant, freezer):
+    """motion_present: motion still showing when the door closes latches."""
+    await _set(hass, MOTION, "on")
+    await _set(hass, DOOR, "on")
+    await _setup(hass, **{CONF_DOOR_ENTITY: DOOR, CONF_LATCH_TRIGGER: "motion_present"})
+    await _set(hass, DOOR, "off")
+    assert hass.states.get(HOLD).attributes["latched"] is True
+
+
+async def test_new_motion_trigger_ignores_motion_present(hass: HomeAssistant, freezer):
+    """The default doesn't latch on motion already showing."""
+    await _set(hass, MOTION, "on")
+    await _set(hass, DOOR, "on")
+    await _setup(hass, **{CONF_DOOR_ENTITY: DOOR})
+    await _set(hass, DOOR, "off")
+    assert hass.states.get(HOLD).attributes["latched"] is False
+
+
+async def test_garage_any_door_open_door_only(hass: HomeAssistant, freezer):
+    """Garage: any of three doors open latches, no motion needed."""
+    for door in GARAGE:
+        await _set(hass, door, "off")
+    await _set(hass, MOTION, "off")
+    await _setup(
+        hass,
+        **{
+            CONF_DOOR_ENTITIES: GARAGE,
+            CONF_LATCH_WHEN: LATCH_WHEN_OPEN,
+            CONF_LATCH_TRIGGER: "door_only",
+        },
+    )
+    assert not _on(hass)
+    await _set(hass, GARAGE[1], "on")  # side door opens
+    assert _on(hass)
+    assert hass.states.get(HOLD).attributes["latched"] is True
+    await _set(hass, GARAGE[0], "on")  # roller door too
+    await _set(hass, GARAGE[1], "off")  # side door shut: roller still open
+    assert hass.states.get(HOLD).attributes["latched"] is True
+    await _set(hass, GARAGE[0], "off")  # all shut: release, hold runs out
+    assert hass.states.get(HOLD).attributes["latched"] is False
+    await _tick(hass, freezer, 91)
+    assert not _on(hass)
+
+
+async def test_door_only_latches_at_startup(hass: HomeAssistant, freezer):
+    """door_only: already in position at startup -> latched."""
+    await _set(hass, MOTION, "off")
+    await _set(hass, GARAGE[0], "on")
+    await _setup(
+        hass,
+        **{
+            CONF_DOOR_ENTITIES: [GARAGE[0]],
+            CONF_LATCH_WHEN: LATCH_WHEN_OPEN,
+            CONF_LATCH_TRIGGER: "door_only",
+        },
+    )
+    assert _on(hass)
+
+
+async def test_several_doors_closed_needs_all_closed(hass: HomeAssistant, freezer):
+    """Latch while closed with two doors: only once both are closed."""
+    doors = ["binary_sensor.door_a", "binary_sensor.door_b"]
+    await _set(hass, doors[0], "on")
+    await _set(hass, doors[1], "on")
+    await _set(hass, MOTION, "off")
+    await _setup(hass, **{CONF_DOOR_ENTITIES: doors})
+    await _set(hass, doors[0], "off")
+    await _set(hass, MOTION, "on")  # one door still open: no latch
+    await _set(hass, MOTION, "off")
+    assert hass.states.get(HOLD).attributes["latched"] is False
+    await _set(hass, doors[1], "off")
+    await _set(hass, MOTION, "on")
+    assert hass.states.get(HOLD).attributes["latched"] is True
+    await _set(hass, doors[1], "on")
+    assert hass.states.get(HOLD).attributes["latched"] is False

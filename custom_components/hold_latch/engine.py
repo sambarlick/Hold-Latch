@@ -6,10 +6,11 @@ Rules
 * All sources off                    -> occupied until ``clears_at``:
     - last_detected mode: last motion onset + hold
     - last_clear mode:    moment all sources cleared + hold
-* Door configured and in its latch position (closed by default), and a
-  *new* motion onset (off -> on) after it got there -> latched: occupied
-  until the door leaves that position.
-* Door leaves the latch position     -> unlatch; the hold restarts from now.
+* Door(s) in the latch position (all closed, or any open), then the latch
+  trigger -> latched: occupied until the doors leave that position.
+  Triggers: a *new* motion onset after reaching the position (default),
+  also motion already showing at that moment, or the doors alone.
+* Doors leave the latch position     -> unlatch; the hold restarts from now.
 * Latched longer than max latch      -> unlatch (escape hatch; 0 disables).
 * Door unavailable/unknown           -> no new latches, existing latch kept.
 * Source returning from unavailable  -> counts for the hold, never latches.
@@ -38,7 +39,15 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, LATCH_WHEN_CLOSED, MODE_LAST_DETECTED, STORAGE_VERSION
+from .const import (
+    DOMAIN,
+    LATCH_WHEN_CLOSED,
+    MODE_LAST_DETECTED,
+    STORAGE_VERSION,
+    TRIGGER_DOOR_ONLY,
+    TRIGGER_MOTION_PRESENT,
+    TRIGGER_NEW_MOTION,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,15 +72,17 @@ class HoldEngine:
         storage_id: str,
         hold_seconds: int,
         hold_mode: str,
-        door_entity: str | None,
+        door_entities: list[str],
         latch_when: str,
+        latch_trigger: str = TRIGGER_NEW_MOTION,
         max_latch_seconds: int,
     ) -> None:
         """Initialise the engine."""
         self.hass = hass
         self._hold = timedelta(seconds=hold_seconds)
         self._hold_mode = hold_mode
-        self._door_entity = door_entity
+        self._door_entities = list(door_entities)
+        self._latch_trigger = latch_trigger
         self._latch_when = latch_when
         self._max_latch = (
             timedelta(seconds=max_latch_seconds) if max_latch_seconds else None
@@ -82,7 +93,7 @@ class HoldEngine:
 
         self._sources: set[str] = set()
         self._active: set[str] = set()
-        self._door_open: bool | None = None  # None = no door, or door unknown
+        self._door_states: dict[str, bool | None] = {}  # True = open, None = unknown
 
         self.occupied = False
         self.latched = False
@@ -119,13 +130,24 @@ class HoldEngine:
 
     @property
     def door_configured(self) -> bool:
-        """True if a door entity is configured."""
-        return self._door_entity is not None
+        """True if any door is configured."""
+        return bool(self._door_entities)
 
     @property
     def door_open(self) -> bool | None:
-        """Door open state; None if no door or door state unknown."""
-        return self._door_open
+        """Any door open -> True; all closed -> False; otherwise None."""
+        states = [self._door_states.get(door) for door in self._door_entities]
+        if not states:
+            return None
+        if any(state is True for state in states):
+            return True
+        if any(state is None for state in states):
+            return None
+        return False
+
+    @property
+    def _door_open(self) -> bool | None:
+        return self.door_open
 
     @property
     def _door_in_latch_position(self) -> bool | None:
@@ -177,16 +199,19 @@ class HoldEngine:
     def async_start(self) -> None:
         """Start tracking the door. Sources are set via async_set_sources."""
         now = dt_util.utcnow()
-        if self._door_entity:
-            self._door_open = self._door_state(self.hass.states.get(self._door_entity))
+        if self._door_entities:
+            for door in self._door_entities:
+                self._door_states[door] = self._door_state(self.hass.states.get(door))
             in_position = self._door_in_latch_position
             if in_position is True:
                 # Already in position: only motion from now on can latch.
                 self.door_closed_at = now
+                if self._latch_trigger == TRIGGER_DOOR_ONLY:
+                    self._latch(now)
             elif in_position is False and self.latched:
                 self._unlatch(now)
             self._unsub_door = async_track_state_change_event(
-                self.hass, [self._door_entity], self._handle_door
+                self.hass, self._door_entities, self._handle_door
             )
         self._evaluate(now)
 
@@ -226,9 +251,7 @@ class HoldEngine:
     @callback
     def async_set_sources(self, entity_ids: set[str]) -> None:
         """Replace the set of source sensors."""
-        entity_ids = set(entity_ids)
-        if self._door_entity:
-            entity_ids.discard(self._door_entity)
+        entity_ids = set(entity_ids) - set(self._door_entities)
         if entity_ids == self._sources and (self._unsub_sources or not entity_ids):
             return
 
@@ -290,11 +313,17 @@ class HoldEngine:
     def _handle_door(self, event: Event[EventStateChangedData]) -> None:
         now = dt_util.utcnow()
         previous = self._door_in_latch_position
-        self._door_open = self._door_state(event.data["new_state"])
+        self._door_states[event.data["entity_id"]] = self._door_state(
+            event.data["new_state"]
+        )
         in_position = self._door_in_latch_position
 
         if in_position is True and previous is not True:
             self.door_closed_at = now
+            if self._latch_trigger == TRIGGER_DOOR_ONLY or (
+                self._latch_trigger == TRIGGER_MOTION_PRESENT and self.any_source_on
+            ):
+                self._latch(now)
         elif in_position is False:
             self.door_closed_at = None
             if self.latched:

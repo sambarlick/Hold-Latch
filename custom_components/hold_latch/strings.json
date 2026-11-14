@@ -56,21 +56,24 @@
       },
       "latch": {
         "title": "Door latch",
-        "description": "Once the door is in the latch position and new motion is seen, the room stays occupied until the door moves. Leaving and shutting the door behind you won't latch an empty room.",
+        "description": "Once the doors are in the latch position and the latch is triggered, the room stays occupied until a door moves.",
         "data": {
-          "door_entity": "Door sensor",
+          "door_entities": "Door sensors",
           "latch_when": "Latch the room",
+          "latch_trigger": "What starts the latch",
           "max_latch": "Maximum latch time"
         },
         "data_description": {
-          "door_entity": "Only door, garage door and opening sensors are listed.",
-          "latch_when": "Most rooms latch while the door is closed.",
+          "door_entities": "Pick one or more. With several, the room counts as closed only when all are closed, and open when any is open.",
+          "latch_when": "Most rooms latch while the doors are closed.",
+          "latch_trigger": "New motion is the safest: leaving and shutting the door behind you won't latch an empty room.",
           "max_latch": "Releases a stuck latch, e.g. if the door opening was missed. In seconds; 0 turns it off."
         }
       }
     },
     "error": {
-      "door_is_source": "The door sensor can't also be the motion sensor."
+      "door_is_source": "The motion sensor can't also be a door sensor.",
+      "no_doors": "Pick at least one door sensor."
     },
     "abort": {
       "single_instance_allowed": "Hold & Latch is already set up. Use Add hold on its integration page to add another."
@@ -139,21 +142,24 @@
         },
         "latch": {
           "title": "Door latch",
-          "description": "Once the door is in the latch position and new motion is seen, the room stays occupied until the door moves. Leaving and shutting the door behind you won't latch an empty room.",
+          "description": "Once the doors are in the latch position and the latch is triggered, the room stays occupied until a door moves.",
           "data": {
-            "door_entity": "Door sensor",
+            "door_entities": "Door sensors",
             "latch_when": "Latch the room",
+            "latch_trigger": "What starts the latch",
             "max_latch": "Maximum latch time"
           },
           "data_description": {
-            "door_entity": "Only door, garage door and opening sensors are listed.",
-            "latch_when": "Most rooms latch while the door is closed.",
+            "door_entities": "Pick one or more. With several, the room counts as closed only when all are closed, and open when any is open.",
+            "latch_when": "Most rooms latch while the doors are closed.",
+            "latch_trigger": "New motion is the safest: leaving and shutting the door behind you won't latch an empty room.",
             "max_latch": "Releases a stuck latch, e.g. if the door opening was missed. In seconds; 0 turns it off."
           }
         }
       },
       "error": {
-        "door_is_source": "The door sensor can't also be the motion sensor."
+        "door_is_source": "The motion sensor can't also be a door sensor.",
+        "no_doors": "Pick at least one door sensor."
       },
       "abort": {
         "reconfigure_successful": "Hold updated."
@@ -169,8 +175,8 @@
     },
     "latch_when": {
       "options": {
-        "closed": "While the door is closed: stays occupied until the door opens (ensuite, toilet, study)",
-        "open": "While the door is open: stays occupied until the door closes (or if your sensor reports the opposite way round)"
+        "closed": "While the doors are closed: stays occupied until a door opens (ensuite, toilet, study)",
+        "open": "While any door is open: stays occupied until they're all closed (garage, shed; or if your sensor reports the opposite way round)"
       }
     },
     "device_classes": {
@@ -178,6 +184,13 @@
         "motion": "Motion",
         "occupancy": "Occupancy",
         "presence": "Presence"
+      }
+    },
+    "latch_trigger": {
+      "options": {
+        "new_motion": "New motion after the doors move into position (recommended)",
+        "motion_present": "Any motion, including motion still showing when the doors move (can latch an empty room if you leave quickly)",
+        "door_only": "The doors alone, no motion needed (e.g. a garage door left open)"
       }
     }
   },
@@ -198,10 +211,10 @@
     },
     "sensor": {
       "clears_at": {
-        "name": "Clears at"
+        "name": "Hold ends"
       },
       "hold_clears_at": {
-        "name": "Hold clears at"
+        "name": "Hold ends"
       }
     },
     "number": {

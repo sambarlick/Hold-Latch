@@ -17,7 +17,7 @@ The hold works like the IKEA VALLHORN's built-in occupancy hold, for any sensor.
 
 * **⏱️ Occupancy hold:** Occupancy stays on for a set time after motion. New motion restarts the hold.
 * **🧲 One sensor or a whole room:** Hold a single sensor, or a whole room (an HA area). Room holds pick up every motion and occupancy sensor in the area, including ones you add or move later.
-* **🚪 Optional door latch:** Door closed, then new motion: the room stays occupied until the door opens. Sitting still in a closed room won't turn the lights off.
+* **🚪 Optional door latch:** One or more doors. Door closed, then new motion: the room stays occupied until the door opens. Sitting still in a closed room won't turn the lights off.
 * **🛡️ No false latches:** Leaving and closing the door behind you doesn't latch an empty room. Only motion *after* the door closes counts.
 * **🔁 Two hold modes:** Count from the last motion (IKEA VALLHORN style), or from when motion clears (for presence sensors that stay on).
 * **🎚️ Live hold time:** A hold time number entity, adjustable from a dashboard without reloading.
@@ -61,7 +61,7 @@ Adding the integration sets up your first hold. To add more, open **Settings** -
 
 Each hold gets its own device. Everything lives under the one Hold & Latch integration.
 
-For a single-sensor hold, you can tick **Add to the sensor's device** instead. The hold's entities are then added to the motion sensor's own device, named **Hold**, **Hold clears at**, **Hold time** and **Hold latch** so they don't clash with the sensor's entities. The sensor's device isn't otherwise changed.
+For a single-sensor hold, you can tick **Add to the sensor's device** instead. The hold's entities are then added to the motion sensor's own device, which is also listed under Hold & Latch. They're named **Hold**, **Hold ends**, **Hold time** and **Hold latch** so they don't clash with the sensor's entities. The sensor's device name, area and other integrations aren't changed.
 
 ### Entities
 
@@ -71,7 +71,7 @@ Each hold's device has:
 |---|---|
 | **Occupancy** | The held occupancy. Attributes show `motion`, `latched`, `last_detected` and `sources`, plus `door_open` and `latched_since` when a latch is set. |
 | **Latch** | On while the door latch is holding the room occupied. Only on holds with a door latch. |
-| **Clears at** | When occupancy will clear. Unknown when the room is clear, latched, or the time can't be known yet (motion still on in *When motion clears* mode). |
+| **Hold ends** | When occupancy will clear. Unknown when the room is clear, latched, or the time can't be known yet (motion still on in *When motion clears* mode). |
 | **Hold time** | The hold time in seconds. Changes apply immediately. |
 
 ### Hold modes
@@ -81,8 +81,16 @@ Each hold's device has:
 
 ### Door latch (optional)
 
-* **Latch the room while the door is closed:** For ensuites, toilets and studies. Stays occupied until the door opens.
-* **Latch the room while the door is open:** Stays occupied until the door closes. Also use this if your door sensor reports the opposite way round.
+Pick one or more door sensors. With several, the room counts as **closed** only when all of them are closed, and **open** when any of them is open.
+
+**Latch the room:**
+* **While the doors are closed:** For ensuites, toilets and studies. Stays occupied until a door opens.
+* **While any door is open:** For garages and sheds. Stays occupied until they're all closed. Also use this if your door sensor reports the opposite way round.
+
+**What starts the latch:**
+* **New motion after the doors move into position (recommended):** Leaving and shutting the door behind you won't latch an empty room.
+* **Any motion, including motion still showing:** Latches as soon as the doors move into position if the sensor still shows motion. Can latch an empty room if you leave quickly.
+* **The doors alone:** No motion needed. For example, a garage stays occupied while any of its doors is open.
 * **Maximum latch time:** Releases a stuck latch, for example if the door opening was missed. Set to 0 to turn it off. The default is 3 hours.
 
 When the latch releases, the hold restarts from that moment.

@@ -13,7 +13,7 @@ def discover_area_sources(
     area_id: str,
     device_classes: list[str],
     exclude: list[str],
-    door_entity: str | None,
+    doors: list[str],
 ) -> set[str]:
     """Return binary sensors in an area matching the device classes.
 
@@ -23,9 +23,7 @@ def discover_area_sources(
     """
     ent_reg = er.async_get(hass)
     dev_reg = dr.async_get(hass)
-    skip = set(exclude)
-    if door_entity:
-        skip.add(door_entity)
+    skip = set(exclude) | set(doors)
 
     found: set[str] = set()
     for entry in ent_reg.entities.values():

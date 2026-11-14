@@ -43,11 +43,13 @@ from .const import (
     CONF_AREA,
     CONF_ATTACH,
     CONF_DEVICE_CLASSES,
+    CONF_DOOR_ENTITIES,
     CONF_DOOR_ENTITY,
     CONF_EXCLUDE,
     CONF_HOLD_MODE,
     CONF_HOLD_TIME,
     CONF_HOLD_TYPE,
+    CONF_LATCH_TRIGGER,
     CONF_LATCH_WHEN,
     CONF_MAX_LATCH,
     CONF_NAME,
@@ -67,10 +69,20 @@ from .const import (
     SUBENTRY_HOLD,
     SUPPORTED_DEVICE_CLASSES,
     TYPE_AREA,
+    TRIGGER_DOOR_ONLY,
+    TRIGGER_MOTION_PRESENT,
+    TRIGGER_NEW_MOTION,
     TYPE_SENSOR,
+    door_entities,
 )
 
-_LATCH_KEYS = (CONF_DOOR_ENTITY, CONF_LATCH_WHEN, CONF_MAX_LATCH)
+_LATCH_KEYS = (
+    CONF_DOOR_ENTITY,
+    CONF_DOOR_ENTITIES,
+    CONF_LATCH_WHEN,
+    CONF_LATCH_TRIGGER,
+    CONF_MAX_LATCH,
+)
 
 
 def _seconds(maximum: int) -> NumberSelector:
@@ -153,7 +165,7 @@ def _hold_schema(hold_type: str, data: dict[str, Any]) -> vol.Schema:
         fields[vol.Required(CONF_ATTACH, default=bool(data.get(CONF_ATTACH)))] = (
             BooleanSelector()
         )
-    fields[vol.Required(CONF_ADD_LATCH, default=bool(data.get(CONF_DOOR_ENTITY)))] = (
+    fields[vol.Required(CONF_ADD_LATCH, default=bool(door_entities(data)))] = (
         BooleanSelector()
     )
     return vol.Schema(fields)
@@ -163,10 +175,12 @@ def _latch_schema(data: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
             vol.Required(
-                CONF_DOOR_ENTITY, default=_default(data, CONF_DOOR_ENTITY)
+                CONF_DOOR_ENTITIES, default=door_entities(data) or vol.UNDEFINED
             ): EntitySelector(
                 EntitySelectorConfig(
-                    domain="binary_sensor", device_class=DOOR_DEVICE_CLASSES
+                    domain="binary_sensor",
+                    device_class=DOOR_DEVICE_CLASSES,
+                    multiple=True,
                 )
             ),
             vol.Required(
@@ -176,6 +190,19 @@ def _latch_schema(data: dict[str, Any]) -> vol.Schema:
                 SelectSelectorConfig(
                     options=[LATCH_WHEN_CLOSED, LATCH_WHEN_OPEN],
                     translation_key=CONF_LATCH_WHEN,
+                )
+            ),
+            vol.Required(
+                CONF_LATCH_TRIGGER,
+                default=_default(data, CONF_LATCH_TRIGGER, TRIGGER_NEW_MOTION),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=[
+                        TRIGGER_NEW_MOTION,
+                        TRIGGER_MOTION_PRESENT,
+                        TRIGGER_DOOR_ONLY,
+                    ],
+                    translation_key=CONF_LATCH_TRIGGER,
                 )
             ),
             vol.Required(
@@ -243,9 +270,12 @@ class _HoldSteps:
         """Configure the door latch."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            if user_input[CONF_DOOR_ENTITY] == self._data.get(CONF_SOURCE_ENTITY):
-                errors[CONF_DOOR_ENTITY] = "door_is_source"
+            if not user_input.get(CONF_DOOR_ENTITIES):
+                errors[CONF_DOOR_ENTITIES] = "no_doors"
+            elif self._data.get(CONF_SOURCE_ENTITY) in user_input[CONF_DOOR_ENTITIES]:
+                errors[CONF_DOOR_ENTITIES] = "door_is_source"
             else:
+                self._data.pop(CONF_DOOR_ENTITY, None)  # old single-door key
                 self._data.update(user_input)
                 self._data[CONF_MAX_LATCH] = int(self._data[CONF_MAX_LATCH])
                 return self._async_finish()
@@ -274,7 +304,7 @@ class _HoldSteps:
                 base = state.name if state else source
         elif area := ar.async_get(hass).async_get_area(data[CONF_AREA]):
             base = area.name
-        suffix = "Latch" if data.get(CONF_DOOR_ENTITY) else "Hold"
+        suffix = "Latch" if door_entities(data) else "Hold"
         return f"{base or 'Room'} {suffix}"
 
     def _async_finish(self):

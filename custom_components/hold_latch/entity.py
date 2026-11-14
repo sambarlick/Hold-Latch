@@ -51,9 +51,14 @@ class HoldLatchEntity(Entity):
         self._attr_unique_id = f"{subentry.subentry_id}_{key}"
         self._attr_translation_key = key
 
-        if device_id := attached_device_id(hass, subentry):
-            # Show on the sensor's device without taking it over.
-            self.device_entry = dr.async_get(hass).async_get(device_id)
+        if (device_id := attached_device_id(hass, subentry)) and (
+            device := dr.async_get(hass).async_get(device_id)
+        ):
+            # Share the sensor's device: it's listed under Hold & Latch too, but
+            # its name, area and other integrations are left as they are.
+            self._attr_device_info = DeviceInfo(
+                identifiers=device.identifiers, connections=device.connections
+            )
             self._attr_translation_key = self._attached_translation_key or key
             return
 

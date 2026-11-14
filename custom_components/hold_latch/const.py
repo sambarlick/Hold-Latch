@@ -22,7 +22,9 @@ CONF_HOLD_TIME = "hold_time"
 CONF_HOLD_MODE = "hold_mode"
 CONF_ADD_LATCH = "add_latch"
 CONF_ATTACH = "attach_to_sensor"
-CONF_DOOR_ENTITY = "door_entity"
+CONF_DOOR_ENTITY = "door_entity"  # v0.1-0.4: one door
+CONF_DOOR_ENTITIES = "door_entities"
+CONF_LATCH_TRIGGER = "latch_trigger"
 CONF_LATCH_WHEN = "latch_when"
 CONF_MAX_LATCH = "max_latch"
 
@@ -33,6 +35,21 @@ MODE_LAST_CLEAR = "last_clear"  # hold runs from when all sources clear
 # Which door position holds the latch
 LATCH_WHEN_CLOSED = "closed"  # latched while the door is shut (ensuite, toilet)
 LATCH_WHEN_OPEN = "open"  # latched while the door is open
+
+# What starts the latch once the door(s) are in the latch position
+TRIGGER_NEW_MOTION = "new_motion"  # motion that starts after (safest)
+TRIGGER_MOTION_PRESENT = "motion_present"  # also motion already showing
+TRIGGER_DOOR_ONLY = "door_only"  # no motion needed (e.g. a garage door left open)
+
+
+def door_entities(data) -> list[str]:
+    """Doors for a hold, reading the old single-door key too."""
+    if doors := data.get(CONF_DOOR_ENTITIES):
+        return list(doors)
+    if door := data.get(CONF_DOOR_ENTITY):
+        return [door]
+    return []
+
 
 # Entity filters for the setup selectors
 SOURCE_DEVICE_CLASSES = ["motion", "occupancy"]
