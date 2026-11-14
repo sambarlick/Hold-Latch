@@ -6,7 +6,8 @@
         "menu_options": {
           "sensor_hold": "Hold a single sensor",
           "area_hold": "Hold a whole area"
-        }
+        },
+        "description": "Choose what to hold."
       },
       "sensor_hold": {
         "title": "Sensor hold",
