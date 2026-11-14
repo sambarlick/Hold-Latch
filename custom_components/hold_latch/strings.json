@@ -1,0 +1,128 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Hold & Latch",
+        "menu_options": {
+          "sensor_hold": "Hold a single sensor",
+          "area_hold": "Hold a whole area"
+        }
+      },
+      "sensor_hold": {
+        "title": "Sensor hold",
+        "data": {
+          "name": "Name",
+          "source_entity": "Motion or occupancy sensor",
+          "hold_time": "Hold time",
+          "hold_mode": "Hold counts from",
+          "door_entity": "Door sensor (optional)",
+          "door_active": "Door sensor 'on' means",
+          "max_latch": "Maximum latch time"
+        },
+        "data_description": {
+          "source_entity": "For latching, the fastest-clearing motion entity works best (e.g. VALLHORN Motion, not Occupancy).",
+          "hold_time": "How long occupancy stays on after motion, in seconds.",
+          "hold_mode": "VALLHORN-style counts from the last motion. Use 'when motion clears' for presence sensors that stay on.",
+          "door_entity": "Enables the latch: door closed + new motion after it closed = occupied until the door opens.",
+          "door_active": "Most door sensors report on = open. Pick inverted if yours reports on = closed.",
+          "max_latch": "Safety release for a stuck latch, in seconds. 0 disables."
+        }
+      },
+      "area_hold": {
+        "title": "Area hold",
+        "data": {
+          "name": "Name",
+          "area": "Area",
+          "device_classes": "Sensor types to include",
+          "exclude_entities": "Exclude sensors",
+          "hold_time": "Hold time",
+          "hold_mode": "Hold counts from",
+          "door_entity": "Door sensor (optional)",
+          "door_active": "Door sensor 'on' means",
+          "max_latch": "Maximum latch time"
+        },
+        "data_description": {
+          "area": "Sensors assigned to this area (directly or via their device) are picked up automatically.",
+          "exclude_entities": "Sensors in the area to ignore.",
+          "hold_time": "How long occupancy stays on after motion, in seconds.",
+          "hold_mode": "VALLHORN-style counts from the last motion. Use 'when motion clears' for presence sensors that stay on.",
+          "door_entity": "Enables the latch: door closed + new motion after it closed = occupied until the door opens.",
+          "door_active": "Most door sensors report on = open. Pick inverted if yours reports on = closed.",
+          "max_latch": "Safety release for a stuck latch, in seconds. 0 disables."
+        }
+      }
+    },
+    "error": {
+      "door_is_source": "The door sensor can't also be the source sensor."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Edit hold",
+        "data": {
+          "source_entity": "Motion or occupancy sensor",
+          "area": "Area",
+          "device_classes": "Sensor types to include",
+          "exclude_entities": "Exclude sensors",
+          "hold_time": "Hold time",
+          "hold_mode": "Hold counts from",
+          "door_entity": "Door sensor (optional)",
+          "door_active": "Door sensor 'on' means",
+          "max_latch": "Maximum latch time"
+        },
+        "data_description": {
+          "source_entity": "For latching, the fastest-clearing motion entity works best (e.g. VALLHORN Motion, not Occupancy).",
+          "area": "Sensors assigned to this area (directly or via their device) are picked up automatically.",
+          "exclude_entities": "Sensors in the area to ignore.",
+          "hold_time": "How long occupancy stays on after motion, in seconds.",
+          "hold_mode": "VALLHORN-style counts from the last motion. Use 'when motion clears' for presence sensors that stay on.",
+          "door_entity": "Enables the latch: door closed + new motion after it closed = occupied until the door opens.",
+          "door_active": "Most door sensors report on = open. Pick inverted if yours reports on = closed.",
+          "max_latch": "Safety release for a stuck latch, in seconds. 0 disables."
+        }
+      }
+    },
+    "error": {
+      "door_is_source": "The door sensor can't also be the source sensor."
+    }
+  },
+  "selector": {
+    "hold_mode": {
+      "options": {
+        "last_detected": "Last motion (VALLHORN-style)",
+        "last_clear": "When motion clears"
+      }
+    },
+    "door_active": {
+      "options": {
+        "open": "Open (standard)",
+        "closed": "Closed (inverted)"
+      }
+    },
+    "device_classes": {
+      "options": {
+        "motion": "Motion",
+        "occupancy": "Occupancy",
+        "presence": "Presence"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "occupancy": {
+        "name": "Occupancy"
+      }
+    },
+    "sensor": {
+      "clears_at": {
+        "name": "Clears at"
+      }
+    },
+    "number": {
+      "hold_time": {
+        "name": "Hold time"
+      }
+    }
+  }
+}
