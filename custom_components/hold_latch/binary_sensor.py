@@ -24,10 +24,12 @@ async def async_setup_entry(
     """Set up the occupancy sensor."""
     for subentry_id, subentry in entry.subentries.items():
         if subentry_id in entry.runtime_data.engines:
-            async_add_entities(
-                [HoldLatchBinarySensor(hass, entry, subentry)],
-                config_subentry_id=subentry_id,
-            )
+            entities: list[BinarySensorEntity] = [
+                HoldLatchBinarySensor(hass, entry, subentry)
+            ]
+            if entry.runtime_data.engines[subentry_id].door_configured:
+                entities.append(HoldLatchLatchedSensor(hass, entry, subentry))
+            async_add_entities(entities, config_subentry_id=subentry_id)
 
 
 class HoldLatchBinarySensor(HoldLatchEntity, BinarySensorEntity):
@@ -68,3 +70,26 @@ class HoldLatchBinarySensor(HoldLatchEntity, BinarySensorEntity):
                 engine.latched_since.isoformat() if engine.latched_since else None
             )
         return attrs
+
+
+class HoldLatchLatchedSensor(HoldLatchEntity, BinarySensorEntity):
+    """On while the door latch is holding the room occupied."""
+
+    _attached_translation_key = "hold_latch"
+
+    def __init__(
+        self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
+    ) -> None:
+        """Initialise the sensor."""
+        super().__init__(hass, entry, subentry, "latch")
+
+    @property
+    def is_on(self) -> bool:
+        """Return True while latched."""
+        return self._engine.latched
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """When the latch engaged."""
+        since = self._engine.latched_since
+        return {"latched_since": since.isoformat() if since else None}

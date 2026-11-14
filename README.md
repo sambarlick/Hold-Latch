@@ -61,7 +61,7 @@ Adding the integration sets up your first hold. To add more, open **Settings** -
 
 Each hold gets its own device. Everything lives under the one Hold & Latch integration.
 
-For a single-sensor hold, you can tick **Show on the sensor's device** instead. The hold's entities are then added to the motion sensor's own device, named **Hold**, **Hold clears at** and **Hold time** so they don't clash with the sensor's entities. The sensor's device isn't otherwise changed.
+For a single-sensor hold, you can tick **Add to the sensor's device** instead. The hold's entities are then added to the motion sensor's own device, named **Hold**, **Hold clears at**, **Hold time** and **Hold latch** so they don't clash with the sensor's entities. The sensor's device isn't otherwise changed.
 
 ### Entities
 
@@ -70,7 +70,8 @@ Each hold's device has:
 | Entity | What it does |
 |---|---|
 | **Occupancy** | The held occupancy. Attributes show `motion`, `latched`, `last_detected` and `sources`, plus `door_open` and `latched_since` when a latch is set. |
-| **Clears at** | When occupancy will clear. Unknown while motion is on or the room is latched. |
+| **Latch** | On while the door latch is holding the room occupied. Only on holds with a door latch. |
+| **Clears at** | When occupancy will clear. Unknown when the room is clear, latched, or the time can't be known yet (motion still on in *When motion clears* mode). |
 | **Hold time** | The hold time in seconds. Changes apply immediately. |
 
 ### Hold modes

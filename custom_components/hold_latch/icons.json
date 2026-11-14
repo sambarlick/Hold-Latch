@@ -1,0 +1,31 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "latch": {
+        "default": "mdi:lock-open-variant",
+        "state": {
+          "on": "mdi:lock"
+        }
+      },
+      "hold_latch": {
+        "default": "mdi:lock-open-variant",
+        "state": {
+          "on": "mdi:lock"
+        }
+      }
+    },
+    "number": {
+      "hold_time": {
+        "default": "mdi:timer-cog-outline"
+      }
+    },
+    "sensor": {
+      "clears_at": {
+        "default": "mdi:timer-sand"
+      },
+      "hold_clears_at": {
+        "default": "mdi:timer-sand"
+      }
+    }
+  }
+}

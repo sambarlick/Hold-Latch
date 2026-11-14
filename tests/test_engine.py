@@ -98,10 +98,13 @@ async def test_vallhorn_style_hold(hass: HomeAssistant, freezer):
 
     await _set(hass, MOTION, "on")
     assert _on(hass)
+    # Clear time is known straight away and doesn't change when motion clears.
+    clears = hass.states.get(CLEARS).state
+    assert clears not in ("unknown", "unavailable")
     await _tick(hass, freezer, 20)
     await _set(hass, MOTION, "off")  # raw motion clears at +20 s
     assert _on(hass)
-    assert hass.states.get(CLEARS).state not in ("unknown", "unavailable")
+    assert hass.states.get(CLEARS).state == clears
 
     await _tick(hass, freezer, 69)  # +89 s
     assert _on(hass)
@@ -372,3 +375,48 @@ async def test_two_holds_one_entry(hass: HomeAssistant, freezer):
     assert hass.states.get("binary_sensor.room_b_occupancy") is None
     assert er.async_get(hass).async_get("binary_sensor.room_b_occupancy") is None
     assert hass.states.get("binary_sensor.room_a_occupancy").state == "on"
+
+
+async def test_clears_at_unknown_when_motion_outlasts_hold(
+    hass: HomeAssistant, freezer
+):
+    """Motion still on after the predicted time: Clears at becomes unknown."""
+    await _set(hass, MOTION, "off")
+    await _setup(hass, **{CONF_HOLD_TIME: 30})
+    await _set(hass, MOTION, "on")
+    assert hass.states.get(CLEARS).state != "unknown"
+    await _tick(hass, freezer, 31)
+    assert _on(hass)
+    assert hass.states.get(CLEARS).state == "unknown"
+
+
+async def test_clears_at_unknown_while_on_in_last_clear_mode(
+    hass: HomeAssistant, freezer
+):
+    """When-motion-clears mode can't predict while motion is on."""
+    await _set(hass, MOTION, "off")
+    await _setup(hass, **{CONF_HOLD_MODE: MODE_LAST_CLEAR})
+    await _set(hass, MOTION, "on")
+    assert hass.states.get(CLEARS).state == "unknown"
+    await _set(hass, MOTION, "off")
+    assert hass.states.get(CLEARS).state != "unknown"
+
+
+async def test_latch_entity(hass: HomeAssistant, freezer):
+    """A hold with a door gets a Latch entity; one without doesn't."""
+    await _set(hass, MOTION, "off")
+    await _set(hass, DOOR, "off")
+    await _setup(hass, **{CONF_DOOR_ENTITY: DOOR})
+    latch = "binary_sensor.test_hold_latch"
+    assert hass.states.get(latch).state == "off"
+    await _set(hass, MOTION, "on")
+    assert hass.states.get(latch).state == "on"
+    assert hass.states.get(latch).attributes["latched_since"] is not None
+    await _set(hass, DOOR, "on")
+    assert hass.states.get(latch).state == "off"
+
+
+async def test_no_latch_entity_without_door(hass: HomeAssistant, freezer):
+    await _set(hass, MOTION, "off")
+    await _setup(hass)
+    assert hass.states.get("binary_sensor.test_hold_latch") is None

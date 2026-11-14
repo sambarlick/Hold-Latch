@@ -138,11 +138,22 @@ class HoldEngine:
 
     @property
     def clears_at(self) -> datetime | None:
-        """When occupancy will clear, or None while held open-ended."""
-        if self.latched or self.any_source_on:
+        """When occupancy will clear, or None while it can't be known.
+
+        None while latched. While motion is still on, it's only known in
+        last-motion mode (the hold already runs from the onset), and only until
+        that time passes with motion still on.
+        """
+        if self.latched:
             return None
         reference = self._reference()
-        return reference + self._hold if reference else None
+        if reference is None:
+            return None
+        clears_at = reference + self._hold
+        if self.any_source_on:
+            if self._hold_mode != MODE_LAST_DETECTED or clears_at <= dt_util.utcnow():
+                return None
+        return clears_at
 
     # -------------------------------------------------------------- lifecycle
 
@@ -353,6 +364,8 @@ class HoldEngine:
                 deadline = self.latched_since + self._max_latch
         elif self.any_source_on:
             occupied = True
+            # Re-check when the predicted clear time passes with motion still on.
+            deadline = self.clears_at
         else:
             clears_at = self.clears_at
             occupied = clears_at is not None and now < clears_at
