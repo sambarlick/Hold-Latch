@@ -23,6 +23,8 @@ The hold works like the IKEA VALLHORN's built-in occupancy hold, for any sensor.
 * **🎚️ Live hold time:** A hold time number entity, adjustable from a dashboard without reloading.
 * **🕒 Clears at:** A timestamp sensor showing when occupancy will clear.
 * **💾 Survives restarts:** Latches and hold timing are restored after a restart.
+* **🏷️ Survives renames:** Rename a motion or door sensor and the hold keeps working.
+* **🩺 Repairs and diagnostics:** A notice appears if a sensor or door is deleted, or stays unavailable for 30 minutes. Download diagnostics from the integration page to see why a room is or isn't latched.
 
 ## ⚠️ Known Limitations
 
@@ -75,6 +77,8 @@ Each hold's device has:
 | **Latch** | On while the door latch is holding the room occupied. Only on holds with a door latch. |
 | **Hold ends** | When occupancy will clear. Unknown when the room is clear, latched, or the time can't be known yet (motion still on in *When motion clears* mode). |
 | **Hold time** | The hold time in seconds. Changes apply immediately. |
+| **Force occupied** | Keeps the room occupied until you switch it off, e.g. for cleaning or a party. When switched off, the hold runs from then. |
+| **Release latch** | Releases the latch now. Only on holds with a door latch. |
 
 ### Hold modes
 

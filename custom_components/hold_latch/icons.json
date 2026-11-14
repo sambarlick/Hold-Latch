@@ -26,6 +26,28 @@
       "hold_clears_at": {
         "default": "mdi:timer-sand"
       }
+    },
+    "button": {
+      "release_latch": {
+        "default": "mdi:lock-open-variant"
+      },
+      "release_hold_latch": {
+        "default": "mdi:lock-open-variant"
+      }
+    },
+    "switch": {
+      "force_occupied": {
+        "default": "mdi:account-lock",
+        "state": {
+          "off": "mdi:account-lock-open"
+        }
+      },
+      "force_hold_on": {
+        "default": "mdi:account-lock",
+        "state": {
+          "off": "mdi:account-lock-open"
+        }
+      }
     }
   }
 }

@@ -96,6 +96,7 @@ class HoldEngine:
         self._door_states: dict[str, bool | None] = {}  # True = open, None = unknown
 
         self.occupied = False
+        self.forced = False
         self.latched = False
         self.latched_since: datetime | None = None
         self.last_detected: datetime | None = None
@@ -166,7 +167,7 @@ class HoldEngine:
         last-motion mode (the hold already runs from the onset), and only until
         that time passes with motion still on.
         """
-        if self.latched:
+        if self.latched or self.forced:
             return None
         reference = self._reference()
         if reference is None:
@@ -184,6 +185,7 @@ class HoldEngine:
         data = await self._store.async_load() or {}
         self.occupied = bool(data.get("occupied", False))
         self.latched = bool(data.get("latched", False))
+        self.forced = bool(data.get("forced", False))
         self.latched_since = _from_iso(data.get("latched_since"))
         self.last_detected = _from_iso(data.get("last_detected"))
         self.last_clear = _from_iso(data.get("last_clear"))
@@ -282,6 +284,51 @@ class HoldEngine:
         """Change the hold time live."""
         self._hold = timedelta(seconds=seconds)
         self._evaluate(dt_util.utcnow())
+
+    @callback
+    def async_release_latch(self) -> None:
+        """Release the latch by hand. The hold then runs from now."""
+        if self.latched:
+            now = dt_util.utcnow()
+            self._unlatch(now)
+            self._evaluate(now)
+
+    @callback
+    def async_set_forced(self, forced: bool) -> None:
+        """Force occupied on or off. Turning it off starts the hold from now."""
+        if forced == self.forced:
+            return
+        now = dt_util.utcnow()
+        self.forced = forced
+        if not forced:
+            self._released_at = now
+        self._evaluate(now)
+
+    def snapshot(self) -> dict[str, Any]:
+        """Everything about the current state, for diagnostics."""
+        return {
+            "occupied": self.occupied,
+            "forced": self.forced,
+            "latched": self.latched,
+            "latched_since": _to_iso(self.latched_since),
+            "last_detected": _to_iso(self.last_detected),
+            "last_clear": _to_iso(self.last_clear),
+            "released_at": _to_iso(self._released_at),
+            "clears_at": _to_iso(self.clears_at),
+            "hold_seconds": self.hold_seconds,
+            "hold_mode": self._hold_mode,
+            "sources": sorted(self._sources),
+            "active_sources": sorted(self._active),
+            "doors": dict(self._door_states),
+            "door_open": self.door_open,
+            "door_in_latch_position": self._door_in_latch_position,
+            "latch_when": self._latch_when,
+            "latch_trigger": self._latch_trigger,
+            "max_latch_seconds": (
+                int(self._max_latch.total_seconds()) if self._max_latch else 0
+            ),
+            "door_reached_position_at": _to_iso(self.door_closed_at),
+        }
 
     # ---------------------------------------------------------------- events
 
@@ -392,7 +439,9 @@ class HoldEngine:
             self._unlatch(now)
 
         deadline: datetime | None = None
-        if self.latched:
+        if self.forced:
+            occupied = True
+        elif self.latched:
             occupied = True
             if self._max_latch and self.latched_since:
                 deadline = self.latched_since + self._max_latch
@@ -420,6 +469,7 @@ class HoldEngine:
     def _data_to_save(self) -> dict[str, Any]:
         return {
             "occupied": self.occupied,
+            "forced": self.forced,
             "latched": self.latched,
             "latched_since": _to_iso(self.latched_since),
             "last_detected": _to_iso(self.last_detected),

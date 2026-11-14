@@ -269,7 +269,7 @@ async def test_attach_to_sensor_device(hass: HomeAssistant):
 
     ent_reg = er.async_get(hass)
     ours = er.async_entries_for_config_entry(ent_reg, entry.entry_id)
-    assert len(ours) == 3
+    assert len(ours) == 4  # occupancy, hold ends, hold time, force switch
     assert {e.device_id for e in ours} == {device.id}
     # Shared: the sensor's device is listed under Hold & Latch too, and we
     # made no device of our own. Its name and area are untouched.
@@ -354,7 +354,8 @@ async def test_area_exclude_lists_only_area_sensors(hass: HomeAssistant):
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     (sub,) = result["result"].subentries.values()
-    assert sub.data["exclude_entities"] == [inside[1]]
+    # Stored by registry ID, so renaming the sensor doesn't undo the exclusion.
+    assert sub.data["exclude_entities"] == [ent_reg.async_get(inside[1]).id]
     await hass.async_block_till_done()
     assert hass.states.get("binary_sensor.garage_hold_occupancy").attributes[
         "sources"

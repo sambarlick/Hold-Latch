@@ -12,18 +12,21 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 
 from .area import discover_area_sources
 from .const import (
     CONF_AREA,
     CONF_DEVICE_CLASSES,
-    CONF_LATCH_TRIGGER,
+    CONF_DOOR_ENTITIES,
+    CONF_DOOR_ENTITY,
     CONF_EXCLUDE,
     CONF_HOLD_MODE,
     CONF_HOLD_TIME,
     CONF_HOLD_TYPE,
+    CONF_LATCH_TRIGGER,
     CONF_LATCH_WHEN,
     CONF_MAX_LATCH,
     CONF_SOURCE_ENTITY,
@@ -42,8 +45,16 @@ from .const import (
 )
 from .engine import HoldEngine
 from .entity import attached_device_id
+from .refs import resolve, resolve_all, to_ref, to_refs
+from .repairs import AvailabilityWatcher, async_clear_hold_issues, async_raise_missing
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.NUMBER, Platform.SENSOR]
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.NUMBER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 
 @dataclass
@@ -52,6 +63,8 @@ class RuntimeData:
 
     engines: dict[str, HoldEngine] = field(default_factory=dict)
     applied: dict[str, Any] = field(default_factory=dict)
+    # Entity IDs each hold depends on directly (sensor-hold source, doors).
+    tracked: dict[str, set[str]] = field(default_factory=dict)
 
 
 type HoldLatchConfigEntry = ConfigEntry[RuntimeData]
@@ -76,16 +89,52 @@ def _structure(entry: ConfigEntry) -> dict[str, Any]:
     }
 
 
+@callback
+def _async_store_refs(hass: HomeAssistant, entry: HoldLatchConfigEntry) -> None:
+    """Store entity registry IDs instead of entity IDs (holds from v0.6 and older).
+
+    Runs before the update listener is added, so it doesn't trigger a reload.
+    """
+    for subentry in _holds(entry).values():
+        data = dict(subentry.data)
+        if source := data.get(CONF_SOURCE_ENTITY):
+            data[CONF_SOURCE_ENTITY] = to_ref(hass, source)
+        if doors := door_entities(data):
+            data.pop(CONF_DOOR_ENTITY, None)
+            data[CONF_DOOR_ENTITIES] = to_refs(hass, doors)
+        if exclude := data.get(CONF_EXCLUDE):
+            data[CONF_EXCLUDE] = to_refs(hass, exclude)
+        if data != dict(subentry.data):
+            hass.config_entries.async_update_subentry(entry, subentry, data=data)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) -> bool:
     """Set up Hold & Latch."""
     runtime = RuntimeData()
     entry.runtime_data = runtime
+    _async_store_refs(hass, entry)
 
     for subentry_id, subentry in _holds(entry).items():
         runtime.engines[subentry_id] = await _async_start_hold(hass, entry, subentry)
         _async_tidy_devices(hass, entry, subentry)
 
     runtime.applied = _structure(entry)
+
+    @callback
+    def _registry_updated(event: Event[er.EventEntityRegistryUpdatedData]) -> None:
+        """Reload when a sensor or door a hold uses is renamed or deleted."""
+        data = event.data
+        if data["action"] == "create":
+            return
+        if data["action"] == "update" and "old_entity_id" not in data:
+            return
+        changed = {data["entity_id"], data.get("old_entity_id")}
+        if any(changed & tracked for tracked in runtime.tracked.values()):
+            hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    entry.async_on_unload(
+        hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _registry_updated)
+    )
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -121,11 +170,20 @@ async def _async_start_hold(
     hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
 ) -> HoldEngine:
     data = subentry.data
-    doors = door_entities(data)
+    subentry_id = subentry.subentry_id
+    hold = subentry.title
+
+    # Fresh notices on each start: deleted entities are raised again below,
+    # and unavailable ones after the watcher's delay.
+    async_clear_hold_issues(hass, subentry_id)
+
+    doors, missing_doors = resolve_all(hass, door_entities(data))
+    for ref in missing_doors:
+        async_raise_missing(hass, subentry_id, hold, "door", ref)
 
     engine = HoldEngine(
         hass,
-        storage_id=subentry.subentry_id,
+        storage_id=subentry_id,
         hold_seconds=int(data.get(CONF_HOLD_TIME, DEFAULT_HOLD_TIME)),
         hold_mode=data.get(CONF_HOLD_MODE, MODE_LAST_DETECTED),
         door_entities=doors,
@@ -137,28 +195,40 @@ async def _async_start_hold(
     engine.async_start()
     entry.async_on_unload(engine.async_stop)
 
+    watched = dict.fromkeys(doors, "door")
+
     if data[CONF_HOLD_TYPE] == TYPE_SENSOR:
-        engine.async_set_sources({data[CONF_SOURCE_ENTITY]})
-        return engine
+        if source := resolve(hass, data[CONF_SOURCE_ENTITY]):
+            engine.async_set_sources({source})
+            watched[source] = "sensor"
+        else:
+            async_raise_missing(
+                hass, subentry_id, hold, "sensor", data[CONF_SOURCE_ENTITY]
+            )
+    else:
+        area_id = data[CONF_AREA]
+        device_classes = data.get(CONF_DEVICE_CLASSES, DEFAULT_DEVICE_CLASSES)
 
-    area_id = data[CONF_AREA]
-    device_classes = data.get(CONF_DEVICE_CLASSES, DEFAULT_DEVICE_CLASSES)
-    exclude = data.get(CONF_EXCLUDE, [])
+        @callback
+        def _refresh_sources(_event: Event | None = None) -> None:
+            exclude, _gone = resolve_all(hass, data.get(CONF_EXCLUDE, []))
+            engine.async_set_sources(
+                discover_area_sources(hass, area_id, device_classes, exclude, doors)
+            )
 
-    @callback
-    def _refresh_sources(_event: Event | None = None) -> None:
-        engine.async_set_sources(
-            discover_area_sources(hass, area_id, device_classes, exclude, doors)
+        _refresh_sources()
+        # Re-discover when entities or devices are added, removed or moved.
+        entry.async_on_unload(
+            hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _refresh_sources)
+        )
+        entry.async_on_unload(
+            hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, _refresh_sources)
         )
 
-    _refresh_sources()
-    # Re-discover when entities or devices are added, removed or moved.
-    entry.async_on_unload(
-        hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _refresh_sources)
-    )
-    entry.async_on_unload(
-        hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, _refresh_sources)
-    )
+    entry.runtime_data.tracked[subentry_id] = set(watched)
+    watcher = AvailabilityWatcher(hass, subentry_id, hold, watched)
+    watcher.async_start()
+    entry.async_on_unload(watcher.async_stop)
     return engine
 
 
@@ -174,8 +244,9 @@ async def _async_update_listener(
             )
         return
 
-    # Forget the saved state of holds that were deleted.
+    # Forget the saved state and notices of holds that were deleted.
     for subentry_id in set(runtime.applied) - set(_holds(entry)):
+        async_clear_hold_issues(hass, subentry_id)
         if engine := runtime.engines.pop(subentry_id, None):
             await engine.async_remove_storage()
     await hass.config_entries.async_reload(entry.entry_id)
@@ -187,6 +258,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) -
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) -> None:
-    """Delete saved state when the integration is removed."""
+    """Delete saved state and notices when the integration is removed."""
     for subentry_id in _holds(entry):
+        async_clear_hold_issues(hass, subentry_id)
         await Store(hass, STORAGE_VERSION, f"{DOMAIN}.{subentry_id}").async_remove()

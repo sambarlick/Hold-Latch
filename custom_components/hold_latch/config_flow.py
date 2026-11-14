@@ -39,6 +39,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .area import discover_area_sources
+from .refs import resolve, resolve_all, to_ref, to_refs
 from .const import (
     CONF_ADD_LATCH,
     CONF_AREA,
@@ -320,9 +321,16 @@ class _HoldSteps:
         )
 
     def _split(self) -> tuple[str, dict[str, Any]]:
+        """Title and data to save, with entities stored by registry ID."""
+        hass = self.hass  # type: ignore[attr-defined]
         data = dict(self._data)
-        name = (data.pop(CONF_NAME, None) or "").strip()
-        return name or self._auto_name(data), data
+        name = (data.pop(CONF_NAME, None) or "").strip() or self._auto_name(data)
+        if source := data.get(CONF_SOURCE_ENTITY):
+            data[CONF_SOURCE_ENTITY] = to_ref(hass, source)
+        for key in (CONF_DOOR_ENTITIES, CONF_EXCLUDE):
+            if data.get(key):
+                data[key] = to_refs(hass, data[key])
+        return name, data
 
     def _auto_name(self, data: dict[str, Any]) -> str:
         """'<sensor or area> Hold', or '... Latch' when a door latch is set."""
@@ -381,7 +389,16 @@ class HoldSubentryFlow(_HoldSteps, ConfigSubentryFlow):
     ) -> SubentryFlowResult:
         """Edit an existing hold. Its type can't change: go straight to its form."""
         subentry = self._get_reconfigure_subentry()
-        self._init_data({**subentry.data, CONF_NAME: subentry.title})
+        data = {**subentry.data, CONF_NAME: subentry.title}
+        # Stored by registry ID; the form works with current entity IDs.
+        if source := data.get(CONF_SOURCE_ENTITY):
+            data[CONF_SOURCE_ENTITY] = resolve(self.hass, source) or source
+        if doors := door_entities(data):
+            data.pop(CONF_DOOR_ENTITY, None)
+            data[CONF_DOOR_ENTITIES] = resolve_all(self.hass, doors)[0]
+        if exclude := data.get(CONF_EXCLUDE):
+            data[CONF_EXCLUDE] = resolve_all(self.hass, exclude)[0]
+        self._init_data(data)
         if self._data[CONF_HOLD_TYPE] == TYPE_SENSOR:
             return await self.async_step_sensor_hold()
         return await self.async_step_area_hold()

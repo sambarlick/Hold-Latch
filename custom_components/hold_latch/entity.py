@@ -11,6 +11,7 @@ from homeassistant.helpers.device import async_entity_id_to_device
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
 
+from .refs import resolve
 from .const import CONF_ATTACH, CONF_HOLD_TYPE, CONF_SOURCE_ENTITY, DOMAIN, TYPE_SENSOR
 
 
@@ -19,7 +20,8 @@ def attached_device_id(hass: HomeAssistant, subentry: ConfigSubentry) -> str | N
     data = subentry.data
     if data.get(CONF_HOLD_TYPE) != TYPE_SENSOR or not data.get(CONF_ATTACH):
         return None
-    device = async_entity_id_to_device(hass, data[CONF_SOURCE_ENTITY])
+    entity_id = resolve(hass, data[CONF_SOURCE_ENTITY])
+    device = async_entity_id_to_device(hass, entity_id) if entity_id else None
     return device.id if device else None
 
 

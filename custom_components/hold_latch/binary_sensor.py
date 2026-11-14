@@ -58,6 +58,7 @@ class HoldLatchBinarySensor(HoldLatchEntity, BinarySensorEntity):
         engine = self._engine
         attrs: dict[str, Any] = {
             "motion": engine.any_source_on,
+            "forced": engine.forced,
             "latched": engine.latched,
             "last_detected": engine.last_detected.isoformat()
             if engine.last_detected

@@ -237,6 +237,40 @@
       "hold_time": {
         "name": "Hold time"
       }
+    },
+    "button": {
+      "release_latch": {
+        "name": "Release latch"
+      },
+      "release_hold_latch": {
+        "name": "Release hold latch"
+      }
+    },
+    "switch": {
+      "force_occupied": {
+        "name": "Force occupied"
+      },
+      "force_hold_on": {
+        "name": "Force hold on"
+      }
+    }
+  },
+  "issues": {
+    "missing_sensor": {
+      "title": "{hold}: motion sensor deleted",
+      "description": "The motion sensor used by the hold **{hold}** no longer exists. Edit the hold under **Settings → Devices & services → Hold & Latch** and pick a sensor again."
+    },
+    "missing_door": {
+      "title": "{hold}: door sensor deleted",
+      "description": "A door sensor used by the hold **{hold}** no longer exists, so its latch can't work properly. Edit the hold under **Settings → Devices & services → Hold & Latch** and check its door sensors."
+    },
+    "unavailable_sensor": {
+      "title": "{hold}: motion sensor unavailable",
+      "description": "`{entity}`, used by the hold **{hold}**, has been unavailable for 30 minutes. The hold can't see motion from it until it's back. This notice clears by itself when the sensor returns."
+    },
+    "unavailable_door": {
+      "title": "{hold}: door sensor unavailable",
+      "description": "`{entity}`, used by the hold **{hold}**, has been unavailable for 30 minutes. No new latch can start until it's back; an existing latch is kept. This notice clears by itself when the sensor returns."
     }
   }
 }
