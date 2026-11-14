@@ -10,6 +10,6 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/sambarlick/Hold-Latch/issues",
   "requirements": [],
-  "version": "0.2.0",
-  "single_config_entry": true
+  "single_config_entry": true,
+  "version": "0.2.0"
 }
