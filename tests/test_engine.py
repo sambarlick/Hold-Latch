@@ -57,7 +57,6 @@ async def _setup(hass, *, hold_type=TYPE_SENSOR, **options):
         domain=DOMAIN,
         title="Hold & Latch",
         data={},
-        version=2,
         subentries_data=[
             {
                 "subentry_type": SUBENTRY_HOLD,
@@ -338,7 +337,6 @@ async def test_two_holds_one_entry(hass: HomeAssistant, freezer):
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={},
-        version=2,
         title="Hold & Latch",
         subentries_data=[
             {
@@ -374,48 +372,3 @@ async def test_two_holds_one_entry(hass: HomeAssistant, freezer):
     assert hass.states.get("binary_sensor.room_b_occupancy") is None
     assert er.async_get(hass).async_get("binary_sensor.room_b_occupancy") is None
     assert hass.states.get("binary_sensor.room_a_occupancy").state == "on"
-
-
-async def test_migrate_v1_entry(hass: HomeAssistant, freezer):
-    """A v0.1 helper entry becomes one hold, keeping its entity IDs."""
-    hass.states.async_set(MOTION, "off")
-    hass.states.async_set(DOOR, "on")
-    old = MockConfigEntry(
-        domain=DOMAIN,
-        title="Ensuite",
-        version=1,
-        data={CONF_HOLD_TYPE: TYPE_SENSOR},
-        options={
-            CONF_SOURCE_ENTITY: MOTION,
-            CONF_HOLD_TIME: 90,
-            CONF_HOLD_MODE: MODE_LAST_DETECTED,
-            CONF_DOOR_ENTITY: DOOR,
-            "door_active": "open",
-            CONF_MAX_LATCH: 10800,
-        },
-    )
-    old.add_to_hass(hass)
-    ent_reg = er.async_get(hass)
-    ent_reg.async_get_or_create(
-        "binary_sensor",
-        DOMAIN,
-        f"{old.entry_id}_occupancy",
-        config_entry=old,
-        suggested_object_id="ensuite_occupancy",
-    )
-
-    assert await hass.config_entries.async_setup(old.entry_id)
-    await hass.async_block_till_done()
-
-    assert old.version == 2
-    assert old.title == "Hold & Latch"
-    (sub,) = old.subentries.values()
-    assert sub.title == "Ensuite"
-    assert sub.data[CONF_LATCH_WHEN] == LATCH_WHEN_CLOSED
-    assert "door_active" not in sub.data
-    # Same entity, same ID, now attached to the hold.
-    assert hass.states.get("binary_sensor.ensuite_occupancy") is not None
-    assert (
-        ent_reg.async_get("binary_sensor.ensuite_occupancy").config_subentry_id
-        == sub.subentry_id
-    )

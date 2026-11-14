@@ -255,7 +255,7 @@ class _HoldSteps:
 class HoldLatchConfigFlow(_HoldSteps, ConfigFlow, domain=DOMAIN):
     """Add Hold & Latch, starting with its first hold."""
 
-    VERSION = 2
+    VERSION = 1
 
     def _async_finish(self) -> ConfigFlowResult:
         title, data = self._split()

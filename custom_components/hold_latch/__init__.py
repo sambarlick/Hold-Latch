@@ -7,7 +7,6 @@ own device, engine and entities.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from types import MappingProxyType
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -149,43 +148,6 @@ async def _async_update_listener(
         if engine := runtime.engines.pop(subentry_id, None):
             await engine.async_remove_storage()
     await hass.config_entries.async_reload(entry.entry_id)
-
-
-async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Migrate a v0.1 entry (one hold per entry, a helper) to one hold subentry.
-
-    The subentry reuses the old entry_id, so entity unique IDs, the device and
-    saved state carry over unchanged.
-    """
-    if entry.version > 2:
-        return False
-    if entry.version == 1:
-        data: dict[str, Any] = {
-            CONF_HOLD_TYPE: entry.data[CONF_HOLD_TYPE],
-            **entry.options,
-        }
-        # v0.1 stored the sensor's polarity; v0.2 stores the latch position.
-        door_active = data.pop("door_active", "open")
-        if data.get(CONF_DOOR_ENTITY):
-            data[CONF_LATCH_WHEN] = (
-                LATCH_WHEN_CLOSED if door_active == "open" else "open"
-            )
-        else:
-            data.pop(CONF_MAX_LATCH, None)
-        hass.config_entries.async_add_subentry(
-            entry,
-            ConfigSubentry(
-                data=MappingProxyType(data),
-                subentry_id=entry.entry_id,
-                subentry_type=SUBENTRY_HOLD,
-                title=entry.title,
-                unique_id=None,
-            ),
-        )
-        hass.config_entries.async_update_entry(
-            entry, title="Hold & Latch", data={}, options={}, version=2
-        )
-    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) -> bool:
