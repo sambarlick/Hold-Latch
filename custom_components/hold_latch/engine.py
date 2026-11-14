@@ -260,11 +260,16 @@ class HoldEngine:
             self._unsub_sources = None
 
         self._sources = entity_ids
+        previously_active = self._active
         self._active = {
             entity_id
             for entity_id in entity_ids
             if (state := self.hass.states.get(entity_id)) and state.state == STATE_ON
         }
+        # Sources already on when picked up (startup, new area sensor) count
+        # as detected now, so the hold still runs once they clear. Never latches.
+        if self._active - previously_active:
+            self.last_detected = dt_util.utcnow()
         if entity_ids:
             self._unsub_sources = async_track_state_change_event(
                 self.hass, list(entity_ids), self._handle_source

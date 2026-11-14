@@ -508,3 +508,15 @@ async def test_several_doors_closed_needs_all_closed(hass: HomeAssistant, freeze
     assert hass.states.get(HOLD).attributes["latched"] is True
     await _set(hass, doors[1], "on")
     assert hass.states.get(HOLD).attributes["latched"] is False
+
+
+async def test_source_already_on_at_startup_still_holds(hass: HomeAssistant, freezer):
+    """A source on at startup has no recorded onset; the hold must still run."""
+    await _set(hass, MOTION, "on")
+    await _setup(hass)
+    assert hass.states.get(HOLD).attributes["last_detected"] is not None
+    await _tick(hass, freezer, 10)
+    await _set(hass, MOTION, "off")
+    assert _on(hass)
+    await _tick(hass, freezer, 81)
+    assert not _on(hass)
