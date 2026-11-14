@@ -55,6 +55,8 @@ On Home Assistant 2026.10 or earlier, add this repository as a custom repository
 3.  Pick the sensor or area, and set the hold time and hold mode.
 4.  Optionally, tick **Add a door latch** and pick the door on the next screen.
 
+For a room hold, the next screen lists the sensors found in that area so you can leave some out, such as your own template sensors or camera detections.
+
 Leave **Name** blank and the hold is named after its sensor or area, e.g. **Ensuite Hold**, or **Ensuite Latch** with a door latch. You can rename it at any time.
 
 Adding the integration sets up your first hold. To add more, open **Settings** -> **Devices & Services** -> **Hold & Latch** and click **Add hold**. To change a hold, use **Edit hold** in its **⋮** menu.

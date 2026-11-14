@@ -42,16 +42,14 @@
           "hold_mode": "Hold counts from",
           "add_latch": "Add a door latch",
           "area": "Area",
-          "device_classes": "Sensor types to include",
-          "exclude_entities": "Sensors to leave out"
+          "device_classes": "Sensor types to include"
         },
         "data_description": {
           "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
           "hold_time": "How long occupancy stays on after motion, in seconds.",
           "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
           "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
-          "area": "Sensors assigned to this area, directly or through their device, are included.",
-          "exclude_entities": "Optional. Sensors in the area that shouldn't count."
+          "area": "Sensors assigned to this area, directly or through their device, are included."
         }
       },
       "latch": {
@@ -68,6 +66,16 @@
           "latch_when": "Most rooms latch while the doors are closed.",
           "latch_trigger": "New motion is the safest: leaving and shutting the door behind you won't latch an empty room.",
           "max_latch": "Releases a stuck latch, e.g. if the door opening was missed. In seconds; 0 turns it off."
+        }
+      },
+      "area_exclude": {
+        "title": "Sensors to leave out",
+        "description": "Found {count} sensors in {area}. Pick any that shouldn't count, such as your own template sensors or camera detections you don't want. Leave it empty to use them all.",
+        "data": {
+          "exclude_entities": "Sensors to leave out"
+        },
+        "data_description": {
+          "exclude_entities": "Only sensors found in this area are listed."
         }
       }
     },
@@ -128,16 +136,14 @@
             "hold_mode": "Hold counts from",
             "add_latch": "Add a door latch",
             "area": "Area",
-            "device_classes": "Sensor types to include",
-            "exclude_entities": "Sensors to leave out"
+            "device_classes": "Sensor types to include"
           },
           "data_description": {
             "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
             "hold_time": "How long occupancy stays on after motion, in seconds.",
             "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
             "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
-            "area": "Sensors assigned to this area, directly or through their device, are included.",
-            "exclude_entities": "Optional. Sensors in the area that shouldn't count."
+            "area": "Sensors assigned to this area, directly or through their device, are included."
           }
         },
         "latch": {
@@ -154,6 +160,16 @@
             "latch_when": "Most rooms latch while the doors are closed.",
             "latch_trigger": "New motion is the safest: leaving and shutting the door behind you won't latch an empty room.",
             "max_latch": "Releases a stuck latch, e.g. if the door opening was missed. In seconds; 0 turns it off."
+          }
+        },
+        "area_exclude": {
+          "title": "Sensors to leave out",
+          "description": "Found {count} sensors in {area}. Pick any that shouldn't count, such as your own template sensors or camera detections you don't want. Leave it empty to use them all.",
+          "data": {
+            "exclude_entities": "Sensors to leave out"
+          },
+          "data_description": {
+            "exclude_entities": "Only sensors found in this area are listed."
           }
         }
       },

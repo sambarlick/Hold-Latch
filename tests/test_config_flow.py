@@ -312,3 +312,50 @@ async def test_attach_to_sensor_device(hass: HomeAssistant):
     assert {
         e.device_id for e in er.async_entries_for_config_entry(ent_reg, entry.entry_id)
     } == {own.id}
+
+
+async def test_area_exclude_lists_only_area_sensors(hass: HomeAssistant):
+    """The leave-out step only offers sensors found in the chosen area."""
+    from homeassistant.helpers import entity_registry as er
+
+    area = ar.async_get(hass).async_create("Garage")
+    ent_reg = er.async_get(hass)
+    inside = []
+    for uid, cls in (("pir", "motion"), ("template", "occupancy")):
+        ent = ent_reg.async_get_or_create(
+            "binary_sensor", "zha", uid, original_device_class=cls
+        )
+        ent_reg.async_update_entity(ent.entity_id, area_id=area.id)
+        hass.states.async_set(ent.entity_id, "off")
+        inside.append(ent.entity_id)
+    elsewhere = ent_reg.async_get_or_create(
+        "binary_sensor", "zha", "hall", original_device_class="motion"
+    )
+
+    result = await _start(hass, "area_hold")
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            "area": area.id,
+            "device_classes": ["motion", "occupancy"],
+            "hold_time": 90,
+            "hold_mode": "last_detected",
+            "add_latch": False,
+        },
+    )
+    assert result["step_id"] == "area_exclude"
+    assert result["description_placeholders"] == {"count": "2", "area": "Garage"}
+    selector = result["data_schema"].schema["exclude_entities"]
+    assert sorted(selector.config["include_entities"]) == sorted(inside)
+    assert elsewhere.entity_id not in selector.config["include_entities"]
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"exclude_entities": [inside[1]]}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    (sub,) = result["result"].subentries.values()
+    assert sub.data["exclude_entities"] == [inside[1]]
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.garage_hold_occupancy").attributes[
+        "sources"
+    ] == [inside[0]]

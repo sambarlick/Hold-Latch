@@ -38,6 +38,7 @@ from homeassistant.helpers.selector import (
     TextSelector,
 )
 
+from .area import discover_area_sources
 from .const import (
     CONF_ADD_LATCH,
     CONF_AREA,
@@ -133,18 +134,6 @@ def _hold_schema(hold_type: str, data: dict[str, Any]) -> vol.Schema:
                 translation_key=CONF_DEVICE_CLASSES,
             )
         )
-        fields[
-            vol.Optional(
-                CONF_EXCLUDE,
-                description={"suggested_value": data.get(CONF_EXCLUDE, [])},
-            )
-        ] = EntitySelector(
-            EntitySelectorConfig(
-                domain="binary_sensor",
-                device_class=SUPPORTED_DEVICE_CLASSES,
-                multiple=True,
-            )
-        )
 
     fields[
         vol.Required(
@@ -217,6 +206,7 @@ class _HoldSteps:
     """Hold setup steps shared by the config flow and the subentry flow."""
 
     _data: dict[str, Any]
+    _add_latch: bool = False
 
     def _init_data(self, data: dict[str, Any] | None = None) -> None:
         if not hasattr(self, "_data"):
@@ -248,23 +238,66 @@ class _HoldSteps:
                 CONF_SOURCE_ENTITY,
                 CONF_AREA,
                 CONF_DEVICE_CLASSES,
-                CONF_EXCLUDE,
             ):
                 self._data.pop(key, None)
             self._data.update(user_input)
             self._data[CONF_HOLD_TYPE] = hold_type
             self._data[CONF_HOLD_TIME] = int(self._data[CONF_HOLD_TIME])
-            if not self._data.get(CONF_EXCLUDE):
-                self._data.pop(CONF_EXCLUDE, None)
-            if add_latch:
-                return await self.async_step_latch()
-            for key in _LATCH_KEYS:
-                self._data.pop(key, None)
-            return self._async_finish()
+            self._add_latch = add_latch
+            if hold_type == TYPE_AREA:
+                return await self.async_step_area_exclude()
+            return await self._async_after_hold()
 
         return self.async_show_form(
             step_id=hold_type, data_schema=_hold_schema(hold_type, self._data)
         )
+
+    async def async_step_area_exclude(self, user_input: dict[str, Any] | None = None):
+        """Pick sensors to leave out, from the ones found in the area."""
+        found = sorted(
+            discover_area_sources(
+                self.hass,  # type: ignore[attr-defined]
+                self._data[CONF_AREA],
+                self._data.get(CONF_DEVICE_CLASSES, DEFAULT_DEVICE_CLASSES),
+                [],
+                [],
+            )
+        )
+        if user_input is not None or not found:
+            exclude = [
+                e for e in (user_input or {}).get(CONF_EXCLUDE, []) if e in found
+            ]
+            if exclude:
+                self._data[CONF_EXCLUDE] = exclude
+            else:
+                self._data.pop(CONF_EXCLUDE, None)
+            return await self._async_after_hold()
+
+        previous = [e for e in self._data.get(CONF_EXCLUDE, []) if e in found]
+        area = ar.async_get(self.hass).async_get_area(self._data[CONF_AREA])  # type: ignore[attr-defined]
+        return self.async_show_form(
+            step_id="area_exclude",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_EXCLUDE, description={"suggested_value": previous}
+                    ): EntitySelector(
+                        EntitySelectorConfig(include_entities=found, multiple=True)
+                    )
+                }
+            ),
+            description_placeholders={
+                "count": str(len(found)),
+                "area": area.name if area else "",
+            },
+        )
+
+    async def _async_after_hold(self):
+        if self._add_latch:
+            return await self.async_step_latch()
+        for key in _LATCH_KEYS:
+            self._data.pop(key, None)
+        return self._async_finish()
 
     async def async_step_latch(self, user_input: dict[str, Any] | None = None):
         """Configure the door latch."""
