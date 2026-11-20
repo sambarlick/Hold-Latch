@@ -520,3 +520,91 @@ async def test_source_already_on_at_startup_still_holds(hass: HomeAssistant, fre
     assert _on(hass)
     await _tick(hass, freezer, 81)
     assert not _on(hass)
+
+
+# ------------------------------------------------------- live latch trigger
+
+SELECT = "select.test_hold_latch_trigger"
+
+
+async def _select(hass, option):
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": SELECT, "option": option},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+
+async def test_latch_trigger_select_applies_live(hass: HomeAssistant, freezer):
+    """The select changes the trigger without a reload and stores it."""
+    await _set(hass, MOTION, "off")
+    await _set(hass, DOOR, "on")
+    entry = await _setup(hass, **{CONF_DOOR_ENTITY: DOOR})
+    assert hass.states.get(SELECT).state == "new_motion"
+
+    await _select(hass, "motion_present")
+    assert hass.states.get(SELECT).state == "motion_present"
+    assert next(iter(entry.subentries.values())).data[CONF_LATCH_TRIGGER] == (
+        "motion_present"
+    )
+
+    # Night: you leave with motion still showing, the child stays in bed.
+    await _set(hass, MOTION, "on")
+    await _set(hass, DOOR, "off")
+    assert hass.states.get(HOLD).attributes["latched"] is True
+
+
+async def test_switch_to_motion_present_after_door_closed(
+    hass: HomeAssistant, freezer
+):
+    """Switching just after the door closed, motion still on, latches now."""
+    await _set(hass, MOTION, "on")
+    await _set(hass, DOOR, "on")
+    await _setup(hass, **{CONF_DOOR_ENTITY: DOOR})
+    await _set(hass, DOOR, "off")
+    assert hass.states.get(HOLD).attributes["latched"] is False
+
+    await _select(hass, "motion_present")
+    assert hass.states.get(HOLD).attributes["latched"] is True
+
+
+async def test_switch_to_motion_present_empty_room_does_not_latch(
+    hass: HomeAssistant, freezer
+):
+    """No motion showing at the switch: an empty closed room stays unlatched."""
+    await _set(hass, MOTION, "off")
+    await _set(hass, DOOR, "off")
+    await _setup(hass, **{CONF_DOOR_ENTITY: DOOR})
+    await _select(hass, "motion_present")
+    assert hass.states.get(HOLD).attributes["latched"] is False
+
+
+async def test_switch_to_new_motion_keeps_latch(hass: HomeAssistant, freezer):
+    """Morning switch back to New motion doesn't release an occupied room."""
+    await _set(hass, MOTION, "on")
+    await _set(hass, DOOR, "on")
+    await _setup(hass, **{CONF_DOOR_ENTITY: DOOR, CONF_LATCH_TRIGGER: "motion_present"})
+    await _set(hass, DOOR, "off")
+    assert hass.states.get(HOLD).attributes["latched"] is True
+
+    await _select(hass, "new_motion")
+    await _set(hass, MOTION, "off")
+    await _tick(hass, freezer, 3600)
+    assert hass.states.get(HOLD).attributes["latched"] is True
+    assert _on(hass)
+
+    # By day, leaving and shutting the door no longer latches.
+    await _set(hass, DOOR, "on")
+    await _set(hass, MOTION, "on")
+    await _set(hass, DOOR, "off")
+    await _set(hass, MOTION, "off")
+    assert hass.states.get(HOLD).attributes["latched"] is False
+
+
+async def test_no_latch_trigger_select_without_door(hass: HomeAssistant, freezer):
+    """Holds without a door have nothing to latch, so no select."""
+    await _set(hass, MOTION, "off")
+    await _setup(hass)
+    assert hass.states.get(SELECT) is None

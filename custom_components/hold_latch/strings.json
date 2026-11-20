@@ -238,6 +238,24 @@
         "name": "Hold time"
       }
     },
+    "select": {
+      "latch_trigger": {
+        "name": "Latch trigger",
+        "state": {
+          "new_motion": "New motion",
+          "motion_present": "Any motion",
+          "door_only": "Doors only"
+        }
+      },
+      "hold_latch_trigger": {
+        "name": "Hold latch trigger",
+        "state": {
+          "new_motion": "New motion",
+          "motion_present": "Any motion",
+          "door_only": "Doors only"
+        }
+      }
+    },
     "button": {
       "release_latch": {
         "name": "Release latch"

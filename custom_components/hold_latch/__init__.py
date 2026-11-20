@@ -52,6 +52,7 @@ PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
     Platform.NUMBER,
+    Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
 ]
@@ -235,12 +236,16 @@ async def _async_start_hold(
 async def _async_update_listener(
     hass: HomeAssistant, entry: HoldLatchConfigEntry
 ) -> None:
-    """Apply hold-time changes live; reload when holds are added, removed or edited."""
+    """Apply hold time and latch trigger live; reload when holds are added, removed or edited."""
     runtime = entry.runtime_data
     if _structure(entry) == runtime.applied:
         for subentry_id, subentry in _holds(entry).items():
-            runtime.engines[subentry_id].async_set_hold(
+            engine = runtime.engines[subentry_id]
+            engine.async_set_hold(
                 int(subentry.data.get(CONF_HOLD_TIME, DEFAULT_HOLD_TIME))
+            )
+            engine.async_set_latch_trigger(
+                subentry.data.get(CONF_LATCH_TRIGGER, TRIGGER_NEW_MOTION)
             )
         return
 
