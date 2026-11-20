@@ -21,15 +21,13 @@
           "hold_time": "Hold time",
           "hold_mode": "Hold counts from",
           "source_entity": "Motion or occupancy sensor",
-          "attach_to_sensor": "Add to the sensor's device",
           "add_latch": "Add a door latch"
         },
         "data_description": {
-          "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
+          "name": "Optional. Leave blank to name it after the area, e.g. Ensuite, giving entities like binary_sensor.ensuite_occupancy.",
           "hold_time": "How long occupancy stays on after motion, in seconds.",
           "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
           "source_entity": "Only motion and occupancy sensors are listed. For a door latch, the fastest-clearing one works best, e.g. an IKEA VALLHORN's Motion rather than its Occupancy.",
-          "attach_to_sensor": "Optional. Puts this hold's entities on the motion sensor's own device instead of creating a new one.",
           "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen."
         }
       },
@@ -45,7 +43,7 @@
           "device_classes": "Sensor types to include"
         },
         "data_description": {
-          "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
+          "name": "Optional. Leave blank to name it after the area, e.g. Ensuite, giving entities like binary_sensor.ensuite_occupancy.",
           "hold_time": "How long occupancy stays on after motion, in seconds.",
           "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
           "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
@@ -115,15 +113,13 @@
             "hold_time": "Hold time",
             "hold_mode": "Hold counts from",
             "source_entity": "Motion or occupancy sensor",
-            "attach_to_sensor": "Add to the sensor's device",
             "add_latch": "Add a door latch"
           },
           "data_description": {
-            "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
+            "name": "Optional. Leave blank to name it after the area, e.g. Ensuite, giving entities like binary_sensor.ensuite_occupancy.",
             "hold_time": "How long occupancy stays on after motion, in seconds.",
             "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
             "source_entity": "Only motion and occupancy sensors are listed. For a door latch, the fastest-clearing one works best, e.g. an IKEA VALLHORN's Motion rather than its Occupancy.",
-            "attach_to_sensor": "Optional. Puts this hold's entities on the motion sensor's own device instead of creating a new one.",
             "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen."
           }
         },
@@ -139,7 +135,7 @@
             "device_classes": "Sensor types to include"
           },
           "data_description": {
-            "name": "Optional. Leave blank to name it after the sensor or area, e.g. Ensuite Hold, or Ensuite Latch with a door latch.",
+            "name": "Optional. Leave blank to name it after the area, e.g. Ensuite, giving entities like binary_sensor.ensuite_occupancy.",
             "hold_time": "How long occupancy stays on after motion, in seconds.",
             "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
             "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
@@ -215,21 +211,12 @@
       "occupancy": {
         "name": "Occupancy"
       },
-      "hold": {
-        "name": "Hold"
-      },
       "latch": {
         "name": "Latch"
-      },
-      "hold_latch": {
-        "name": "Hold latch"
       }
     },
     "sensor": {
       "clears_at": {
-        "name": "Hold ends"
-      },
-      "hold_clears_at": {
         "name": "Hold ends"
       }
     },
@@ -240,15 +227,7 @@
     },
     "select": {
       "latch_trigger": {
-        "name": "Latch trigger",
-        "state": {
-          "new_motion": "New motion",
-          "motion_present": "Any motion",
-          "door_only": "Doors only"
-        }
-      },
-      "hold_latch_trigger": {
-        "name": "Hold latch trigger",
+        "name": "Latch mode",
         "state": {
           "new_motion": "New motion",
           "motion_present": "Any motion",
@@ -259,17 +238,11 @@
     "button": {
       "release_latch": {
         "name": "Release latch"
-      },
-      "release_hold_latch": {
-        "name": "Release hold latch"
       }
     },
     "switch": {
       "force_occupied": {
         "name": "Force occupied"
-      },
-      "force_hold_on": {
-        "name": "Force hold on"
       }
     }
   },

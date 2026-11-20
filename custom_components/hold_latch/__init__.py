@@ -44,7 +44,6 @@ from .const import (
     door_entities,
 )
 from .engine import HoldEngine
-from .entity import attached_device_id
 from .refs import resolve, resolve_all, to_ref, to_refs
 from .repairs import AvailabilityWatcher, async_clear_hold_issues, async_raise_missing
 
@@ -145,21 +144,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) ->
 def _async_tidy_devices(
     hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
 ) -> None:
-    """Keep a hold linked to exactly one device.
+    """Keep a hold on its own device only.
 
-    Attached to its sensor's device: drop the hold's own device. Not attached
-    (or attached to a different sensor now): unlink from other devices.
+    Holds from v0.8 and older could share their sensor's device; unlink them
+    from it so the sensor's device is left as it was.
     """
     dev_reg = dr.async_get(hass)
     subentry_id = subentry.subentry_id
-    attached = attached_device_id(hass, subentry)
     for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
         if subentry_id not in device.config_entries_subentries.get(entry.entry_id, ()):
             continue
-        own = (DOMAIN, subentry_id) in device.identifiers
-        if own and attached:
-            dev_reg.async_remove_device(device.id)
-        elif not own and device.id != attached:
+        if (DOMAIN, subentry_id) not in device.identifiers:
             dev_reg.async_update_device(
                 device.id,
                 remove_config_entry_id=entry.entry_id,

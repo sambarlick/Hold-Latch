@@ -524,7 +524,7 @@ async def test_source_already_on_at_startup_still_holds(hass: HomeAssistant, fre
 
 # ------------------------------------------------------- live latch trigger
 
-SELECT = "select.test_hold_latch_trigger"
+SELECT = "select.test_hold_latch_mode"
 
 
 async def _select(hass, option):
