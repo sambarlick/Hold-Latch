@@ -40,7 +40,6 @@ class HoldLatchTriggerSelect(HoldLatchEntity, SelectEntity):
 
     _attr_entity_category = EntityCategory.CONFIG
     _attr_options = LATCH_TRIGGERS
-    _attached_translation_key = "hold_latch_trigger"
 
     def __init__(
         self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry

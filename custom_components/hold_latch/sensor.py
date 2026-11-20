@@ -37,7 +37,6 @@ class HoldLatchClearsAtSensor(HoldLatchEntity, SensorEntity):
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
-    _attached_translation_key = "hold_clears_at"
 
     def __init__(
         self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry

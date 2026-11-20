@@ -23,6 +23,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device import async_entity_id_to_device
 from homeassistant.helpers.selector import (
     AreaSelector,
@@ -151,10 +152,6 @@ def _hold_schema(hold_type: str, data: dict[str, Any]) -> vol.Schema:
             translation_key=CONF_HOLD_MODE,
         )
     )
-    if hold_type == TYPE_SENSOR:
-        fields[vol.Required(CONF_ATTACH, default=bool(data.get(CONF_ATTACH)))] = (
-            BooleanSelector()
-        )
     fields[vol.Required(CONF_ADD_LATCH, default=bool(door_entities(data)))] = (
         BooleanSelector()
     )
@@ -233,6 +230,7 @@ class _HoldSteps:
         if user_input is not None:
             add_latch = user_input.pop(CONF_ADD_LATCH, False)
             # Switching type on reconfigure must not leave the old type's keys.
+            # (CONF_ATTACH: removed in v0.9, dropped from older holds here.)
             for key in (
                 CONF_NAME,
                 CONF_ATTACH,
@@ -333,20 +331,29 @@ class _HoldSteps:
         return name, data
 
     def _auto_name(self, data: dict[str, Any]) -> str:
-        """'<sensor or area> Hold', or '... Latch' when a door latch is set."""
+        """The hold's area, so entity IDs read e.g. binary_sensor.ensuite_latch.
+
+        A sensor hold uses its sensor's area (the entity's, else its device's),
+        or the sensor's device name if it has no area.
+        """
         hass = self.hass  # type: ignore[attr-defined]
-        base: str | None = None
-        if data[CONF_HOLD_TYPE] == TYPE_SENSOR:
-            source = data[CONF_SOURCE_ENTITY]
-            if device := async_entity_id_to_device(hass, source):
-                base = device.name_by_user or device.name
-            if not base:
-                state = hass.states.get(source)
-                base = state.name if state else source
-        elif area := ar.async_get(hass).async_get_area(data[CONF_AREA]):
-            base = area.name
-        suffix = "Latch" if door_entities(data) else "Hold"
-        return f"{base or 'Room'} {suffix}"
+        area_reg = ar.async_get(hass)
+        if data[CONF_HOLD_TYPE] != TYPE_SENSOR:
+            area = area_reg.async_get_area(data[CONF_AREA])
+            return area.name if area else "Room"
+
+        source = data[CONF_SOURCE_ENTITY]
+        device = async_entity_id_to_device(hass, source)
+        entity = er.async_get(hass).async_get(source)
+        area_id = (entity.area_id if entity else None) or (
+            device.area_id if device else None
+        )
+        if area_id and (area := area_reg.async_get_area(area_id)):
+            return area.name
+        if device and (name := device.name_by_user or device.name):
+            return name
+        state = hass.states.get(source)
+        return state.name if state else source
 
     def _async_finish(self):
         raise NotImplementedError

@@ -39,7 +39,6 @@ class HoldLatchBinarySensor(HoldLatchEntity, BinarySensorEntity):
     # Keep fast-changing / bulky attributes out of the recorder.
     _unrecorded_attributes = frozenset({"sources", "last_detected"})
 
-    _attached_translation_key = "hold"
 
     def __init__(
         self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
@@ -76,7 +75,6 @@ class HoldLatchBinarySensor(HoldLatchEntity, BinarySensorEntity):
 class HoldLatchLatchedSensor(HoldLatchEntity, BinarySensorEntity):
     """On while the door latch is holding the room occupied."""
 
-    _attached_translation_key = "hold_latch"
 
     def __init__(
         self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry

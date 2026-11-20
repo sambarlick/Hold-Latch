@@ -33,7 +33,6 @@ class HoldLatchForceSwitch(HoldLatchEntity, SwitchEntity):
     Remembered across restarts. Switching off starts the hold from then.
     """
 
-    _attached_translation_key = "force_hold_on"
 
     def __init__(
         self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry

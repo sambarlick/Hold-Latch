@@ -29,7 +29,6 @@ async def async_setup_entry(
 class HoldLatchReleaseButton(HoldLatchEntity, ButtonEntity):
     """Release the latch now. The hold then runs out as normal."""
 
-    _attached_translation_key = "release_hold_latch"
 
     def __init__(
         self, hass: HomeAssistant, entry: HoldLatchConfigEntry, subentry: ConfigSubentry
