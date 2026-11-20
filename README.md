@@ -60,7 +60,7 @@ On Home Assistant 2026.10 or earlier, add this repository as a custom repository
 
 For a room hold, the next screen lists the sensors found in that area so you can leave some out, such as your own template sensors or camera detections.
 
-Leave **Name** blank and the hold is named after its area, e.g. **Ensuite**, so its entities read `binary_sensor.ensuite_occupancy`, `binary_sensor.ensuite_latch` and so on. A single-sensor hold uses the sensor's area, or the sensor's name if it has no area. You can rename it at any time.
+Leave **Name** blank and the hold is named after its area: **Ensuite Hold**, or **Ensuite Latch** with a door latch. Its entities then read `binary_sensor.ensuite_latch_occupancy`, `binary_sensor.ensuite_latch_latch` and so on. A single-sensor hold uses the sensor's area, or the sensor's name if it has no area. You can rename it at any time.
 
 Adding the integration sets up your first hold. To add more, open **Settings** -> **Devices & Services** -> **Hold & Latch** and click **Add hold**. To change a hold, use **Edit hold** in its **⋮** menu.
 
@@ -74,11 +74,11 @@ Each hold's device has:
 |---|---|
 | **Occupancy** | The held occupancy. Attributes show `motion`, `latched`, `last_detected` and `sources`, plus `door_open` and `latched_since` when a latch is set. |
 | **Latch** | On while the door latch is holding the room occupied. Only on holds with a door latch. |
-| **Hold ends** | When occupancy will clear. Unknown when the room is clear, latched, or the time can't be known yet (motion still on in *When motion clears* mode). |
-| **Hold time** | The hold time in seconds. Changes apply immediately. |
-| **Force occupied** | Keeps the room occupied until you switch it off, e.g. for cleaning or a party. When switched off, the hold runs from then. |
-| **Release latch** | Releases the latch now. Only on holds with a door latch. |
-| **Latch mode** | What starts the latch (see below). Changes apply immediately, so an automation can switch it by house mode. Only on holds with a door latch. |
+| **Hold Ends** | When occupancy will clear. Unknown when the room is clear, latched, or the time can't be known yet (motion still on in *When motion clears* mode). |
+| **Hold Time** | The hold time in seconds. Changes apply immediately. |
+| **Force Occupied** | Keeps the room occupied until you switch it off, e.g. for cleaning or a party. When switched off, the hold runs from then. |
+| **Release Latch** | Releases the latch now. Only on holds with a door latch. |
+| **Latch Mode** | What starts the latch (see below). Changes apply immediately, so an automation can switch it by house mode. Only on holds with a door latch. |
 
 ### Hold modes
 
@@ -101,12 +101,12 @@ Pick one or more door sensors. With several, the room counts as **closed** only 
 
 When the latch releases, the hold restarts from that moment.
 
-**Changing the trigger by time or mode:** The **Latch mode** entity changes it without a reload, so an automation can use a different trigger at different times. For example, *New motion* during the day, so closing the door on an empty room doesn't latch it, and *Any motion* at night, so closing the door on someone who's lying still does. If the doors are already in position when it changes, it latches straight away when the new trigger would have: *Any motion* with motion still showing, or *The doors alone*. Changing the trigger never releases an existing latch.
+**Changing the trigger by time or mode:** The **Latch Mode** entity changes it without a reload, so an automation can use a different trigger at different times. For example, *New motion* during the day, so closing the door on an empty room doesn't latch it, and *Any motion* at night, so closing the door on someone who's lying still does. If the doors are already in position when it changes, it latches straight away when the new trigger would have: *Any motion* with motion still showing, or *The doors alone*. Changing the trigger never releases an existing latch.
 
 ```yaml
 action: select.select_option
 target:
-  entity_id: select.bedroom_latch_mode
+  entity_id: select.bedroom_latch_latch_mode
 data:
   option: motion_present  # or new_motion, door_only
 ```

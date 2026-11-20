@@ -23,8 +23,6 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers import area_registry as ar
-from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.device import async_entity_id_to_device
 from homeassistant.helpers.selector import (
     AreaSelector,
     BooleanSelector,
@@ -40,6 +38,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .area import discover_area_sources
+from .naming import auto_name
 from .refs import resolve, resolve_all, to_ref, to_refs
 from .const import (
     CONF_ADD_LATCH,
@@ -331,29 +330,12 @@ class _HoldSteps:
         return name, data
 
     def _auto_name(self, data: dict[str, Any]) -> str:
-        """The hold's area, so entity IDs read e.g. binary_sensor.ensuite_latch.
-
-        A sensor hold uses its sensor's area (the entity's, else its device's),
-        or the sensor's device name if it has no area.
-        """
-        hass = self.hass  # type: ignore[attr-defined]
-        area_reg = ar.async_get(hass)
-        if data[CONF_HOLD_TYPE] != TYPE_SENSOR:
-            area = area_reg.async_get_area(data[CONF_AREA])
-            return area.name if area else "Room"
-
-        source = data[CONF_SOURCE_ENTITY]
-        device = async_entity_id_to_device(hass, source)
-        entity = er.async_get(hass).async_get(source)
-        area_id = (entity.area_id if entity else None) or (
-            device.area_id if device else None
+        """'<area> Hold', or '<area> Latch' with a door latch."""
+        return auto_name(
+            self.hass,  # type: ignore[attr-defined]
+            data,
+            data.get(CONF_SOURCE_ENTITY) if data[CONF_HOLD_TYPE] == TYPE_SENSOR else None,
         )
-        if area_id and (area := area_reg.async_get_area(area_id)):
-            return area.name
-        if device and (name := device.name_by_user or device.name):
-            return name
-        state = hass.states.get(source)
-        return state.name if state else source
 
     def _async_finish(self):
         raise NotImplementedError
@@ -363,6 +345,7 @@ class HoldLatchConfigFlow(_HoldSteps, ConfigFlow, domain=DOMAIN):
     """Add Hold & Latch, starting with its first hold."""
 
     VERSION = 1
+    MINOR_VERSION = 2
 
     def _async_finish(self) -> ConfigFlowResult:
         title, data = self._split()

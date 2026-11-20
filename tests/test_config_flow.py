@@ -228,23 +228,23 @@ async def _sensor_hold_with_latch(hass, source):
 
 
 async def test_auto_name_from_sensor_area(hass: HomeAssistant):
-    """Blank name on a sensor hold: the sensor's area, so IDs read ensuite_*."""
+    """Blank name on a sensor hold: '<sensor's area> Latch'."""
     from homeassistant.helpers import device_registry as dr
 
     device, source = await _sensor_with_device(hass)
     area = ar.async_get(hass).async_create("Ensuite")
     dr.async_get(hass).async_update_device(device.id, area_id=area.id)
     entry, sub = await _sensor_hold_with_latch(hass, source)
-    assert sub.title == "Ensuite"
+    assert sub.title == "Ensuite Latch"
     assert "name" not in sub.data
     for entity_id in (
-        "binary_sensor.ensuite_occupancy",
-        "binary_sensor.ensuite_latch",
-        "sensor.ensuite_hold_ends",
-        "number.ensuite_hold_time",
-        "select.ensuite_latch_mode",
-        "switch.ensuite_force_occupied",
-        "button.ensuite_release_latch",
+        "binary_sensor.ensuite_latch_occupancy",
+        "binary_sensor.ensuite_latch_latch",
+        "sensor.ensuite_latch_hold_ends",
+        "number.ensuite_latch_hold_time",
+        "select.ensuite_latch_latch_mode",
+        "switch.ensuite_latch_force_occupied",
+        "button.ensuite_latch_release_latch",
     ):
         assert hass.states.get(entity_id) is not None, entity_id
 
@@ -253,11 +253,11 @@ async def test_auto_name_without_area_uses_sensor(hass: HomeAssistant):
     """No area: fall back to the sensor's device name."""
     _device, source = await _sensor_with_device(hass)
     _entry, sub = await _sensor_hold_with_latch(hass, source)
-    assert sub.title == "Ensuite Motion Sensor"
+    assert sub.title == "Ensuite Motion Sensor Latch"
 
 
 async def test_auto_name_area(hass: HomeAssistant):
-    """Blank name on a room hold: the area's name."""
+    """Blank name on a room hold: '<area> Hold'."""
     area = ar.async_get(hass).async_create("Back Hallway")
     result = await _start(hass, "area_hold")
     result = await hass.config_entries.flow.async_configure(
@@ -271,9 +271,16 @@ async def test_auto_name_area(hass: HomeAssistant):
         },
     )
     (sub,) = result["result"].subentries.values()
-    assert sub.title == "Back Hallway"
+    assert sub.title == "Back Hallway Hold"
     await hass.async_block_till_done()
-    assert hass.states.get("binary_sensor.back_hallway_occupancy") is not None
+    assert hass.states.get("binary_sensor.back_hallway_hold_occupancy") is not None
+    assert hass.states.get("binary_sensor.back_hallway_hold_occupancy").name == (
+        "Back Hallway Hold Occupancy"
+    )
+
+
+def _sub_of(entry):
+    return next(iter(entry.subentries.values()))
 
 
 async def test_old_attached_hold_gets_own_device(hass: HomeAssistant):
@@ -290,7 +297,7 @@ async def test_old_attached_hold_gets_own_device(hass: HomeAssistant):
         subentries_data=[
             {
                 "subentry_type": SUBENTRY_HOLD,
-                "title": "Ensuite",
+                "title": "Ensuite Motion Sensor Hold",
                 "data": {
                     "hold_type": "sensor_hold",
                     "source_entity": ent_reg.async_get(source).id,
@@ -317,7 +324,9 @@ async def test_old_attached_hold_gets_own_device(hass: HomeAssistant):
     assert entry.entry_id not in dev_reg.async_get(device.id).config_entries
     assert dev_reg.async_get(device.id).name == "Ensuite Motion Sensor"
     (own,) = dr.async_entries_for_config_entry(dev_reg, entry.entry_id)
-    assert own.name == "Ensuite"
+    # No area on the sensor, so the old automatic name is still current.
+    assert own.name == "Ensuite Motion Sensor Hold"
+    assert "attach_to_sensor" not in _sub_of(entry).data
     assert {
         e.device_id for e in er.async_entries_for_config_entry(ent_reg, entry.entry_id)
     } == {own.id}
@@ -366,6 +375,63 @@ async def test_area_exclude_lists_only_area_sensors(hass: HomeAssistant):
     # Stored by registry ID, so renaming the sensor doesn't undo the exclusion.
     assert sub.data["exclude_entities"] == [ent_reg.async_get(inside[1]).id]
     await hass.async_block_till_done()
-    assert hass.states.get("binary_sensor.garage_occupancy").attributes[
+    assert hass.states.get("binary_sensor.garage_hold_occupancy").attributes[
         "sources"
     ] == [inside[0]]
+
+
+async def _old_hold(hass, title, data):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Hold & Latch",
+        data={},
+        subentries_data=[
+            {
+                "subentry_type": SUBENTRY_HOLD,
+                "title": title,
+                "data": {"hold_time": 90, "hold_mode": "last_detected", **data},
+                "unique_id": None,
+            }
+        ],
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    return _sub_of(entry)
+
+
+async def test_old_automatic_names_are_updated(hass: HomeAssistant):
+    """'<sensor> Latch' (v0.8) and '<area>' (v0.9) become '<area> Latch'."""
+    from homeassistant.helpers import device_registry as dr
+
+    device, source = await _sensor_with_device(hass)
+    area = ar.async_get(hass).async_create("Ensuite")
+    dr.async_get(hass).async_update_device(device.id, area_id=area.id)
+    hass.states.async_set("binary_sensor.ensuite_door", "off", {"device_class": "door"})
+    latch = {
+        "hold_type": "sensor_hold",
+        "source_entity": source,
+        "door_entities": ["binary_sensor.ensuite_door"],
+        "latch_when": "closed",
+    }
+    for old in ("Ensuite Motion Sensor Latch", "Ensuite"):
+        sub = await _old_hold(hass, old, latch)
+        assert sub.title == "Ensuite Latch", old
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            await hass.config_entries.async_remove(entry.entry_id)
+        await hass.async_block_till_done()
+
+
+async def test_typed_names_are_kept(hass: HomeAssistant):
+    """A name typed by hand is never changed."""
+    from homeassistant.helpers import device_registry as dr
+
+    device, source = await _sensor_with_device(hass)
+    area = ar.async_get(hass).async_create("Ensuite")
+    dr.async_get(hass).async_update_device(device.id, area_id=area.id)
+    sub = await _old_hold(
+        hass, "Mirror Lights", {"hold_type": "sensor_hold", "source_entity": source}
+    )
+    assert sub.title == "Mirror Lights"

@@ -19,6 +19,7 @@ from homeassistant.helpers.storage import Store
 from .area import discover_area_sources
 from .const import (
     CONF_AREA,
+    CONF_ATTACH,
     CONF_DEVICE_CLASSES,
     CONF_DOOR_ENTITIES,
     CONF_DOOR_ENTITY,
@@ -44,6 +45,7 @@ from .const import (
     door_entities,
 )
 from .engine import HoldEngine
+from .naming import auto_name, old_auto_names
 from .refs import resolve, resolve_all, to_ref, to_refs
 from .repairs import AvailabilityWatcher, async_clear_hold_issues, async_raise_missing
 
@@ -106,6 +108,38 @@ def _async_store_refs(hass: HomeAssistant, entry: HoldLatchConfigEntry) -> None:
             data[CONF_EXCLUDE] = to_refs(hass, exclude)
         if data != dict(subentry.data):
             hass.config_entries.async_update_subentry(entry, subentry, data=data)
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) -> bool:
+    """One-off upgrades of holds saved by older versions.
+
+    1.2 (v0.10): rename holds that still have an older automatic name to
+    '<area> Hold/Latch' (names typed by hand are left alone), and drop the
+    removed 'attach to sensor' option.
+    """
+    if entry.version > 1:
+        return False  # Saved by a newer version.
+    if entry.minor_version < 2:
+        for subentry in _holds(entry).values():
+            data = dict(subentry.data)
+            data.pop(CONF_ATTACH, None)
+            title = subentry.title
+            source = data.get(CONF_SOURCE_ENTITY)
+            sensor = (
+                resolve(hass, source)
+                if source and data.get(CONF_HOLD_TYPE) == TYPE_SENSOR
+                else None
+            )
+            if data.get(CONF_HOLD_TYPE) != TYPE_SENSOR or sensor:
+                current = auto_name(hass, data, sensor)
+                if title != current and title in old_auto_names(hass, data, sensor):
+                    title = current
+            if data != dict(subentry.data) or title != subentry.title:
+                hass.config_entries.async_update_subentry(
+                    entry, subentry, data=data, title=title
+                )
+        hass.config_entries.async_update_entry(entry, minor_version=2)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HoldLatchConfigEntry) -> bool:

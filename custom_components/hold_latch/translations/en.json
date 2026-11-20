@@ -24,7 +24,7 @@
           "add_latch": "Add a door latch"
         },
         "data_description": {
-          "name": "Optional. Leave blank to name it after the area, e.g. Ensuite, giving entities like binary_sensor.ensuite_occupancy.",
+          "name": "Optional. Leave blank to name it after the area, e.g. Ensuite Hold, or Ensuite Latch with a door latch. A sensor without an area uses the sensor's name.",
           "hold_time": "How long occupancy stays on after motion, in seconds.",
           "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
           "source_entity": "Only motion and occupancy sensors are listed. For a door latch, the fastest-clearing one works best, e.g. an IKEA VALLHORN's Motion rather than its Occupancy.",
@@ -43,7 +43,7 @@
           "device_classes": "Sensor types to include"
         },
         "data_description": {
-          "name": "Optional. Leave blank to name it after the area, e.g. Ensuite, giving entities like binary_sensor.ensuite_occupancy.",
+          "name": "Optional. Leave blank to name it after the area, e.g. Ensuite Hold, or Ensuite Latch with a door latch. A sensor without an area uses the sensor's name.",
           "hold_time": "How long occupancy stays on after motion, in seconds.",
           "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
           "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
@@ -116,7 +116,7 @@
             "add_latch": "Add a door latch"
           },
           "data_description": {
-            "name": "Optional. Leave blank to name it after the area, e.g. Ensuite, giving entities like binary_sensor.ensuite_occupancy.",
+            "name": "Optional. Leave blank to name it after the area, e.g. Ensuite Hold, or Ensuite Latch with a door latch. A sensor without an area uses the sensor's name.",
             "hold_time": "How long occupancy stays on after motion, in seconds.",
             "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
             "source_entity": "Only motion and occupancy sensors are listed. For a door latch, the fastest-clearing one works best, e.g. an IKEA VALLHORN's Motion rather than its Occupancy.",
@@ -135,7 +135,7 @@
             "device_classes": "Sensor types to include"
           },
           "data_description": {
-            "name": "Optional. Leave blank to name it after the area, e.g. Ensuite, giving entities like binary_sensor.ensuite_occupancy.",
+            "name": "Optional. Leave blank to name it after the area, e.g. Ensuite Hold, or Ensuite Latch with a door latch. A sensor without an area uses the sensor's name.",
             "hold_time": "How long occupancy stays on after motion, in seconds.",
             "hold_mode": "IKEA VALLHORN style counts from the last motion. For presence sensors that stay on, count from when motion clears.",
             "add_latch": "Optional. Keeps the room occupied while you're inside with the door shut, even if you sit still. Set up on the next screen.",
@@ -217,17 +217,17 @@
     },
     "sensor": {
       "clears_at": {
-        "name": "Hold ends"
+        "name": "Hold Ends"
       }
     },
     "number": {
       "hold_time": {
-        "name": "Hold time"
+        "name": "Hold Time"
       }
     },
     "select": {
       "latch_trigger": {
-        "name": "Latch mode",
+        "name": "Latch Mode",
         "state": {
           "new_motion": "New motion",
           "motion_present": "Any motion",
@@ -237,12 +237,12 @@
     },
     "button": {
       "release_latch": {
-        "name": "Release latch"
+        "name": "Release Latch"
       }
     },
     "switch": {
       "force_occupied": {
-        "name": "Force occupied"
+        "name": "Force Occupied"
       }
     }
   },
