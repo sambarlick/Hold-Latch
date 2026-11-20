@@ -40,6 +40,7 @@ LATCH_WHEN_OPEN = "open"  # latched while the door is open
 TRIGGER_NEW_MOTION = "new_motion"  # motion that starts after (safest)
 TRIGGER_MOTION_PRESENT = "motion_present"  # also motion already showing
 TRIGGER_DOOR_ONLY = "door_only"  # no motion needed (e.g. a garage door left open)
+LATCH_TRIGGERS = [TRIGGER_NEW_MOTION, TRIGGER_MOTION_PRESENT, TRIGGER_DOOR_ONLY]
 
 
 def door_entities(data) -> list[str]:
@@ -64,4 +65,4 @@ MAX_HOLD_TIME = 7200
 MAX_LATCH_LIMIT = 86400
 
 # Options that can change without reloading the entry
-LIVE_OPTIONS = frozenset({CONF_HOLD_TIME})
+LIVE_OPTIONS = frozenset({CONF_HOLD_TIME, CONF_LATCH_TRIGGER})

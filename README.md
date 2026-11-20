@@ -21,6 +21,7 @@ The hold works like the IKEA VALLHORN's built-in occupancy hold, for any sensor.
 * **🛡️ No false latches:** Leaving and closing the door behind you doesn't latch an empty room. Only motion *after* the door closes counts.
 * **🔁 Two hold modes:** Count from the last motion (IKEA VALLHORN style), or from when motion clears (for presence sensors that stay on).
 * **🎚️ Live hold time:** A hold time number entity, adjustable from a dashboard without reloading.
+* **🌙 Live latch trigger:** Switch what starts the latch from an automation, e.g. by house mode for a bedroom.
 * **🕒 Clears at:** A timestamp sensor showing when occupancy will clear.
 * **💾 Survives restarts:** Latches and hold timing are restored after a restart.
 * **🏷️ Survives renames:** Rename a motion or door sensor and the hold keeps working.
@@ -65,7 +66,7 @@ Adding the integration sets up your first hold. To add more, open **Settings** -
 
 Each hold gets its own device. Everything lives under the one Hold & Latch integration.
 
-For a single-sensor hold, you can tick **Add to the sensor's device** instead. The hold's entities are then added to the motion sensor's own device, which is also listed under Hold & Latch. They're named **Hold**, **Hold ends**, **Hold time** and **Hold latch** so they don't clash with the sensor's entities. The sensor's device name, area and other integrations aren't changed.
+For a single-sensor hold, you can tick **Add to the sensor's device** instead. The hold's entities are then added to the motion sensor's own device, which is also listed under Hold & Latch. They're named **Hold**, **Hold ends**, **Hold time**, **Hold latch** and **Hold latch trigger** so they don't clash with the sensor's entities. The sensor's device name, area and other integrations aren't changed.
 
 ### Entities
 
@@ -79,6 +80,7 @@ Each hold's device has:
 | **Hold time** | The hold time in seconds. Changes apply immediately. |
 | **Force occupied** | Keeps the room occupied until you switch it off, e.g. for cleaning or a party. When switched off, the hold runs from then. |
 | **Release latch** | Releases the latch now. Only on holds with a door latch. |
+| **Latch trigger** | What starts the latch (see below). Changes apply immediately, so an automation can switch it by house mode. Only on holds with a door latch. |
 
 ### Hold modes
 
@@ -100,6 +102,16 @@ Pick one or more door sensors. With several, the room counts as **closed** only 
 * **Maximum latch time:** Releases a stuck latch, for example if the door opening was missed. Set to 0 to turn it off. The default is 3 hours.
 
 When the latch releases, the hold restarts from that moment.
+
+**Changing the trigger by time or mode:** The **Latch trigger** entity changes it without a reload. A bedroom is the usual case: *New motion* by day, so shutting the door on an empty room doesn't latch it, and *Any motion* at night, so closing the door on a child who's lying still does. If you switch with the door already closed, it latches straight away when the new trigger would have: *Any motion* with motion still showing, or *The doors alone*. Switching back never releases an existing latch.
+
+```yaml
+action: select.select_option
+target:
+  entity_id: select.kids_bedroom_latch_trigger
+data:
+  option: motion_present  # or new_motion, door_only
+```
 
 Only motion and occupancy sensors are offered as sources, and only door, garage door and opening sensors as doors.
 

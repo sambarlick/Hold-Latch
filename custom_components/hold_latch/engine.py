@@ -130,6 +130,11 @@ class HoldEngine:
         return bool(self._active)
 
     @property
+    def latch_trigger(self) -> str:
+        """What starts the latch once the doors are in position."""
+        return self._latch_trigger
+
+    @property
     def door_configured(self) -> bool:
         """True if any door is configured."""
         return bool(self._door_entities)
@@ -284,6 +289,26 @@ class HoldEngine:
         """Change the hold time live."""
         self._hold = timedelta(seconds=seconds)
         self._evaluate(dt_util.utcnow())
+
+    @callback
+    def async_set_latch_trigger(self, latch_trigger: str) -> None:
+        """Change what starts the latch, live (e.g. by house mode).
+
+        An existing latch is kept. If the doors are already in position and the
+        new trigger would have latched when they got there (motion showing, or
+        doors alone), latch now, so a switch made just after the door closed
+        isn't missed.
+        """
+        if latch_trigger == self._latch_trigger:
+            return
+        self._latch_trigger = latch_trigger
+        now = dt_util.utcnow()
+        if not self.latched and self._door_in_latch_position is True:
+            if latch_trigger == TRIGGER_DOOR_ONLY or (
+                latch_trigger == TRIGGER_MOTION_PRESENT and self.any_source_on
+            ):
+                self._latch(now)
+        self._evaluate(now)
 
     @callback
     def async_release_latch(self) -> None:
