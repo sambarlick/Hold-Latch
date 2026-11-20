@@ -21,7 +21,7 @@ The hold works like the IKEA VALLHORN's built-in occupancy hold, for any sensor.
 * **🛡️ No false latches:** Leaving and closing the door behind you doesn't latch an empty room. Only motion *after* the door closes counts.
 * **🔁 Two hold modes:** Count from the last motion (IKEA VALLHORN style), or from when motion clears (for presence sensors that stay on).
 * **🎚️ Live hold time:** A hold time number entity, adjustable from a dashboard without reloading.
-* **🌙 Live latch trigger:** Switch what starts the latch from an automation, e.g. by house mode for a bedroom.
+* **🌙 Live latch trigger:** Change what starts the latch from a dashboard or an automation, without a reload.
 * **🕒 Clears at:** A timestamp sensor showing when occupancy will clear.
 * **💾 Survives restarts:** Latches and hold timing are restored after a restart.
 * **🏷️ Survives renames:** Rename a motion or door sensor and the hold keeps working.
@@ -103,12 +103,12 @@ Pick one or more door sensors. With several, the room counts as **closed** only 
 
 When the latch releases, the hold restarts from that moment.
 
-**Changing the trigger by time or mode:** The **Latch trigger** entity changes it without a reload. A bedroom is the usual case: *New motion* by day, so shutting the door on an empty room doesn't latch it, and *Any motion* at night, so closing the door on a child who's lying still does. If you switch with the door already closed, it latches straight away when the new trigger would have: *Any motion* with motion still showing, or *The doors alone*. Switching back never releases an existing latch.
+**Changing the trigger by time or mode:** The **Latch trigger** entity changes it without a reload, so an automation can use a different trigger at different times. For example, *New motion* during the day, so closing the door on an empty room doesn't latch it, and *Any motion* at night, so closing the door on someone who's lying still does. If the doors are already in position when it changes, it latches straight away when the new trigger would have: *Any motion* with motion still showing, or *The doors alone*. Changing the trigger never releases an existing latch.
 
 ```yaml
 action: select.select_option
 target:
-  entity_id: select.kids_bedroom_latch_trigger
+  entity_id: select.bedroom_latch_trigger
 data:
   option: motion_present  # or new_motion, door_only
 ```
